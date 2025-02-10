@@ -64,3 +64,13 @@ Set the correct permissions for the ckan user:
 sudo chown -R 503:502 ckan_storage
 ```
 ````
+
+### Development mode
+
+To run CKAN in development mode, use the `docker-compose.dev.yml` file.
+
+```bash
+docker compose -f docker-compose.dev.yml up
+```
+
+This will start the CKAN container with the `ckan/Dockerfile.dev` image.

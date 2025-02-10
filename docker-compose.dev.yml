@@ -39,6 +39,8 @@ services:
   datapusher:
     image: ckan/ckan-base-datapusher:${DATAPUSHER_VERSION}
     restart: unless-stopped
+    env_file:
+      - .env.dev
     healthcheck:
       test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:8800']
       interval: 60s
@@ -48,6 +50,8 @@ services:
   db:
     build:
       context: postgresql/
+    env_file:
+      - .env.dev
     environment:
       - POSTGRES_USER
       - POSTGRES_PASSWORD
@@ -67,6 +71,8 @@ services:
 
   solr:
     image: ckan/ckan-solr:${SOLR_IMAGE_VERSION}
+    env_file:
+      - .env.dev
     volumes:
       - solr_data:/var/solr
     restart: unless-stopped
@@ -75,6 +81,8 @@ services:
 
   redis:
     image: redis:${REDIS_VERSION}
+    env_file:
+      - .env.dev
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'redis-cli', '-e', 'QUIT']

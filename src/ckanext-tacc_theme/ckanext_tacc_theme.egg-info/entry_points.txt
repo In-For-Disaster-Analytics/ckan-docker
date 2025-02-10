@@ -1,0 +1,5 @@
+[babel.extractors]
+ckan = ckan.lib.extract:extract_ckan
+
+[ckan.plugins]
+tacc_theme = ckanext.tacc_theme.plugin:TaccThemePlugin

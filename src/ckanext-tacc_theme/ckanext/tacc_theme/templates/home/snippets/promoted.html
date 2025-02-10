@@ -1,0 +1,16 @@
+{% set intro = g.site_intro_text %}
+
+<div class="module-content box">
+  <div>
+    {% if intro %}
+      {{ h.render_markdown(intro) }}
+    {% else %}
+      <h1 class="page-heading">{{ _("Welcome to Data Discovery") }}</h1>
+      <p>
+        {% trans %}Data Discovery is a platform for discovering, accessing, and
+        visualizing data from the Texas Advanced Computing Center (TACC).
+        {% endtrans %}
+      </p>
+    {% endif %}
+  </div>
+</div>

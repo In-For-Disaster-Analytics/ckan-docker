@@ -1,0 +1,14 @@
+# tacc_theme-js:
+#   filter: rjsmin
+#   output: ckanext-tacc_theme/%(version)s-tacc_theme.js
+#   contents:
+#     - js/tacc_theme.js
+#   extra:
+#     preload:
+#       - base/main
+
+styles:
+  filter: cssrewrite
+  output: ckanext-tacc_theme/%(version)s-tacc_theme.css
+  contents:
+    - tacc_theme.css

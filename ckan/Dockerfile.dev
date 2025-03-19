@@ -11,16 +11,8 @@ RUN pip install ckanext-geoview
 ADD requirements/ckanext-spatial.txt /tmp/
 RUN pip3 install -r /tmp/ckanext-spatial.txt
 RUN pip3 install "git+https://github.com/ckan/ckanext-spatial.git#egg=ckanext-spatial"
-
-# Add visual functionality extensions from TWDB list
 RUN pip3 install "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-showcase"
-
-# Add scheming extension
 RUN pip3 install "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"
-
-#RUN pip3 install "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"
-
-# Copy custom initialization scripts
 COPY docker-entrypoint.d/* /docker-entrypoint.d/
 
 # Apply any patches needed to CKAN core or any of the built extensions (not the

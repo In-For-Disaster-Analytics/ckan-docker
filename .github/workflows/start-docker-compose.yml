@@ -19,7 +19,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Create .env file
+      - name: Create .env.dev.secrets file
         run: cp .env.secrets.example .env.dev.secrets
 
       - name: Build Docker images
@@ -102,14 +102,14 @@ jobs:
         if: failure()
         run: |
           echo "==== Container Status ===="
-          docker compose ps
+          docker compose -f docker-compose.dev.yml ps
 
           echo "==== Container Logs ===="
           for service in ckan db solr redis datapusher; do
             echo "==== $service logs ===="
-            docker compose logs $service
+            docker compose -f docker-compose.dev.yml logs $service
           done
 
       - name: Stop containers
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.dev.yml down -v

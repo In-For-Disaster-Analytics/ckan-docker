@@ -60,7 +60,7 @@ services:
     networks:
       - ckannet
       - dbnet
-    image: ckan/ckan-base-datapusher:${DATAPUSHER_VERSION}
+    image: ckan/ckan-base-datapusher:0.0.20
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:8800']
@@ -108,7 +108,7 @@ services:
     logging:
       options:
         max-size: 100m
-    image: redis:${REDIS_VERSION}
+    image: redis:6
     networks:
       - redisnet
     restart: unless-stopped

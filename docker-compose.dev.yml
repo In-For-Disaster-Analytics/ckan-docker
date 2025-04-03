@@ -13,7 +13,7 @@ services:
       context: ckan/
       dockerfile: Dockerfile.dev
       args:
-        - TZ=${TZ}
+        - TZ=UTC
     env_file:
       - .env.dev.config
       - .env.dev.secrets
@@ -38,7 +38,7 @@ services:
       retries: 3
 
   datapusher:
-    image: ckan/ckan-base-datapusher:${DATAPUSHER_VERSION}
+    image: ckan/ckan-base-datapusher:0.0.20
     env_file:
       - .env.dev.config
       - .env.dev.secrets
@@ -63,7 +63,7 @@ services:
         ['CMD', 'pg_isready', '-U', '${POSTGRES_USER}', '-d', '${POSTGRES_DB}']
 
   solr:
-    image: ckan/ckan-solr:${SOLR_IMAGE_VERSION}
+    image: ckan/ckan-solr:2.9-solr9-spatial
     volumes:
       - solr_data:/var/solr
     restart: unless-stopped
@@ -71,7 +71,7 @@ services:
       test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:8983/solr/']
 
   redis:
-    image: redis:${REDIS_VERSION}
+    image: redis:6
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'redis-cli', '-e', 'QUIT']

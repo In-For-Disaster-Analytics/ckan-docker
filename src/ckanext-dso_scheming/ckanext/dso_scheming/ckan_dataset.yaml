@@ -71,16 +71,19 @@ dataset_fields:
   - field_name: temporal_coverage_start
     label: Temporal Coverage Start
     preset: date
+    required: false
 
   - field_name: temporal_coverage_end
     label: Temporal Coverage End
     preset: date
+    required: false
 
   - field_name: spatial
     label: Spatial Coverage
     form_placeholder: '{"type": "Polygon", "coordinates": [[[100, 0], [101, 0], [101, 1], [100, 1], [100, 0]]]}'
     help_text: 'Enter the spatial coverage using GeoJSON format. You can use <a href="https://geojson.io/" target="_blank">geojson.io</a> to create a GeoJSON object.'
     help_allow_html: true
+    required: false
 
 resource_fields:
   - field_name: url

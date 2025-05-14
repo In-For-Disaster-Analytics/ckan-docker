@@ -1,13 +1,26 @@
 volumes:
-  ckan_storage:
-  pg_data:
-  solr_data:
-  pip_cache:
-  site_packages:
-  local_bin:
-  home_dir:
+  ckan_storage_dev:
+  pg_data_dev:
+  solr_data_dev:
+  pip_cache_dev:
+  site_packages_dev:
+  local_bin_dev:
+  home_dir_dev:
 
 services:
+  change-vol-ownership:
+    # We can use any image we want as long as we can chown
+    image: busybox
+    # Need a user priviliged enough to chown
+    user: 'root'
+    # Specify the group in question
+    group_add:
+      - '502'
+    volumes:
+      # The volume to chown
+      - ./src:/srv/app/src_extensions
+    command: sh -c 'chown -R :502 /srv/app/src_extensions && chmod -R 775 /srv/app/src_extensions'
+
   ckan-dev:
     build:
       context: ckan/
@@ -24,18 +37,20 @@ services:
     ports:
       - '0.0.0.0:5000:5000'
     volumes:
-      - ckan_storage:/var/lib/ckan
+      - ckan_storage_dev:/var/lib/ckan
       - ./src:/srv/app/src_extensions
-      - pip_cache:/root/.cache/pip
-      - site_packages:/usr/local/lib/python3.10/site-packages
-      - local_bin:/usr/local/bin
-      - home_dir:/srv/app/
+      - pip_cache_dev:/root/.cache/pip
+      - site_packages_dev:/usr/local/lib/python3.10/site-packages
+      - local_bin_dev:/usr/local/bin
+      - home_dir_dev:/srv/app/
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:5000']
       interval: 60s
       timeout: 10s
       retries: 3
+    depends_on:
+      - change-vol-ownership
 
   datapusher:
     image: ckan/ckan-base-datapusher:0.0.20
@@ -56,7 +71,7 @@ services:
       - .env.dev.config
       - .env.dev.secrets
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_data_dev:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'postgres']
@@ -64,7 +79,7 @@ services:
   solr:
     image: ckan/ckan-solr:2.9-solr9-spatial
     volumes:
-      - solr_data:/var/solr
+      - solr_data_dev:/var/solr
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:8983/solr/']

@@ -3,7 +3,9 @@ FROM ckan/ckan-base:2.9-py3.9
 # See Dockerfile.dev for more details and examples
 
 USER root
-RUN apt-get install -y python3-dev libxml2-dev libxslt1-dev libgeos-c1v5 \
+RUN echo 'deb http://deb.debian.org/debian bookworm 12.9 main' > /etc/apt/sources.list.d/bookworm.list && \
+    apt-get update && \
+    apt-get install -y python3-dev libxml2-dev libxslt1-dev libgeos-c1v5 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

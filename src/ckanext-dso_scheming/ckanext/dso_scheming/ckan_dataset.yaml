@@ -93,6 +93,8 @@ dataset_fields:
     form_snippet: forms_snippets/spatial.html
     help_text: 'Define the geographic coverage as GeoJSON geometry'
     form_placeholder: 'Paste a valid GeoJSON geometry'
+    help_allow_html: true
+    required: false
 
 resource_fields:
   - field_name: url

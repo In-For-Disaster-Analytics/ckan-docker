@@ -12,8 +12,6 @@ RUN echo 'deb http://deb.debian.org/debian bookworm 12.9 main' > /etc/apt/source
 RUN chown -R ckan: /srv/app
 ADD requirements/ckanext-spatial.txt /tmp/
 RUN pip3 install -r /tmp/ckanext-spatial.txt
-
-USER ckan
 RUN pip3 install ckanext-geoview
 RUN pip3 install "git+https://github.com/ckan/ckanext-spatial.git#egg=ckanext-spatial"
 RUN pip3 install -e "git+https://github.com/In-For-Disaster-Analytics/ckanext-oauth2.git@0.9.2#egg=ckanext-oauth2"
@@ -22,6 +20,8 @@ RUN pip3 install -e "git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-p
 RUN pip3 install "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"
 RUN pip3 install ckanext-pdfview
 RUN pip3 install ckanext-tif-imageview
+
+USER ckan
 COPY docker-entrypoint.d/* /docker-entrypoint.d/
 COPY patches ${APP_DIR}/patches
 

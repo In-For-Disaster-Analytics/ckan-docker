@@ -21,6 +21,7 @@ RUN pip3 install "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-s
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages"
 RUN pip3 install "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"
 RUN pip3 install ckanext-pdfview
+RUN pip3 install ckanext-tif-imageview
 COPY docker-entrypoint.d/* /docker-entrypoint.d/
 COPY patches ${APP_DIR}/patches
 

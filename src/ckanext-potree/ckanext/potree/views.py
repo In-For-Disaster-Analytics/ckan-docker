@@ -80,17 +80,7 @@ def _fetch_scene_data(resource):
         # Fetch file content
         response = requests.get(file_url, timeout=10)
         response.raise_for_status()
-
-        # Parse JSON
-        scene_data = response.json()
-
-        # Basic validation - check if it looks like a Potree scene
-        if not isinstance(scene_data, dict):
-            return None
-
-        if scene_data.get('type') != 'Potree':
-            log.warning(f"Resource {resource['id']} doesn't appear to be a Potree scene file")
-
+        scene_data = response.text()
         return scene_data
 
     except requests.RequestException as e:

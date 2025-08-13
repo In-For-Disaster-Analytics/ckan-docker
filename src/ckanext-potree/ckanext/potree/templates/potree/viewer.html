@@ -1,0 +1,118 @@
+<!-- templates/potree/viewer.html -->
+{% extends "page.html" %}
+
+{% block subtitle %}{{ _('Potree Scene Viewer') }} - {{ resource.name }}{% endblock %}
+
+{% block breadcrumb_content %}
+  <li>{% link_for _('Datasets'), named_route='dataset.search' %}</li>
+  <li>{% link_for package.title|truncate(30), named_route='dataset.read', id=package.name %}</li>
+  <li>{% link_for resource.name|truncate(30), named_route='resource.read', id=resource.id %}</li>
+  <li class="active">{{ _('Scene Viewer') }}</li>
+{% endblock %}
+
+{% block primary_content %}
+  <div class="module">
+    <div class="module-content">
+      <h1 class="page-heading">
+        {{ _('Potree Scene Viewer') }}
+        <small>{{ resource.name }}</small>
+      </h1>
+
+      <div class="resource-info">
+        <p class="text-muted">
+          <strong>{{ _('Dataset') }}:</strong> {{ package.title }}<br>
+          <strong>{{ _('Resource') }}:</strong> {{ resource.name }}<br>
+          <strong>{{ _('Format') }}:</strong> {{ resource.format }}<br>
+          <strong>{{ _('Size') }}:</strong> {{ resource.size or _('Unknown') }}
+        </p>
+      </div>
+
+      {% if scene_data %}
+        <div class="scene-summary">
+          <h3>{{ _('Scene Summary') }}</h3>
+          <div class="row">
+            <div class="col-md-3">
+              <div class="stat-box">
+                <strong>{{ scene_data.pointclouds|length if scene_data.pointclouds else 0 }}</strong>
+                <br>{{ _('Point Clouds') }}
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box">
+                <strong>{{ scene_data.annotations|length if scene_data.annotations else 0 }}</strong>
+                <br>{{ _('Annotations') }}
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box">
+                <strong>{{ scene_data.measurements|length if scene_data.measurements else 0 }}</strong>
+                <br>{{ _('Measurements') }}
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box">
+                <strong>{{ scene_data.version or _('Unknown') }}</strong>
+                <br>{{ _('Potree Version') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scene-data">
+          <h3>{{ _('Scene Data') }}</h3>
+          <div class="alert alert-info">
+            <strong>{{ _('Note') }}:</strong> {{ _('This is Phase 1 implementation showing raw scene data. Full 3D viewer will be implemented in Phase 2.') }}
+          </div>
+
+          <pre class="scene-json"><code>{{ scene_json }}</code></pre>
+        </div>
+      {% else %}
+        <div class="alert alert-error">
+          <strong>{{ _('Error') }}:</strong> {{ _('Could not load scene data. Please check that the file is a valid Potree scene configuration.') }}
+        </div>
+      {% endif %}
+
+      <div class="actions">
+        <a href="{{ h.url_for('resource.read', id=resource.id) }}" class="btn btn-default">
+          <i class="fa fa-arrow-left"></i> {{ _('Back to Resource') }}
+        </a>
+        {% if resource.url %}
+          <a href="{{ resource.url }}" class="btn btn-primary" download>
+            <i class="fa fa-download"></i> {{ _('Download Scene File') }}
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+  <style>
+    .scene-summary .stat-box {
+      text-align: center;
+      padding: 15px;
+      background: #f8f8f8;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    .scene-json {
+      background: #f8f8f8;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      max-height: 600px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+
+    .resource-info {
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+  </style>
+{% endblock %}

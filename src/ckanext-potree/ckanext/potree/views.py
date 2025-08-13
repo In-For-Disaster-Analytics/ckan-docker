@@ -37,7 +37,6 @@ def get_blueprints():
                 'resource': resource,
                 'package': package,
                 'scene_data': scene_data,
-                'scene_json': json.dumps(scene_data, indent=2),
                 'resource_id': resource_id
             })
 

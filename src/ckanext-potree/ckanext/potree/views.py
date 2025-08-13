@@ -1,4 +1,4 @@
-# ckanext/potree/viewer.py
+# ckanext/potree/views.py
 from flask import Blueprint
 import ckan.plugins.toolkit as toolkit
 from ckan.common import _, request, config

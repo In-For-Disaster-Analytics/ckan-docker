@@ -57,7 +57,7 @@ def _is_potree_scene_resource(resource):
         return True
 
     # Check by filename extension
-    if resource.get('name', '').lower().endswith('.json'):
+    if resource.get('name', '').lower().endswith('.json5'):
         return True
 
     return False

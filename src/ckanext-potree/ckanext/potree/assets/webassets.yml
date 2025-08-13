@@ -1,0 +1,14 @@
+# potree-js:
+#   filter: rjsmin
+#   output: ckanext-potree/%(version)s-potree.js
+#   contents:
+#     - js/potree.js
+#   extra:
+#     preload:
+#       - base/main
+
+# potree-css:
+#   filter: cssrewrite
+#   output: ckanext-potree/%(version)s-potree.css
+#   contents:
+#     - css/potree.css

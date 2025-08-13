@@ -1,7 +1,7 @@
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 from ckan.common import config
-from ckanext.potree import viewer, helpers
+from ckanext.potree import views, helpers
 
 class PotreePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
@@ -16,7 +16,7 @@ class PotreePlugin(plugins.SingletonPlugin):
 
     # IBlueprint
     def get_blueprint(self):
-        return viewer.get_blueprints()
+        return views.get_blueprints()
 
     # ITemplateHelpers
     def get_helpers(self):

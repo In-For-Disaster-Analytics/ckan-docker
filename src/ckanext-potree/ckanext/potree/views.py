@@ -53,7 +53,7 @@ def get_blueprints():
 def _is_potree_scene_resource(resource):
     """Check if resource is a Potree scene file"""
     # Check by format
-    if resource.get('format', '').lower() in ['potree-workspace', 'potree-scene']:
+    if resource.get('format', '').lower() in ['potree-workspace', 'potree-scene', 'json5']:
         return True
 
     # Check by filename extension

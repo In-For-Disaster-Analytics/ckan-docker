@@ -69,6 +69,7 @@ def _fetch_scene_data(resource):
 
     try:
         file_url = resource.get('url')
+        log.info(f"Fetching scene data from URL: {file_url}")
         # Fetch file content
         response = requests.get(file_url, timeout=10)
         response.raise_for_status()

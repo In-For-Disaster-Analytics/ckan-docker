@@ -68,15 +68,7 @@ def _fetch_scene_data(resource):
     from urllib.parse import urljoin
 
     try:
-        # Get file URL
-        if resource.get('url_type') == 'upload':
-            # For uploaded files, use CKAN's download URL
-            site_url = config.get('ckan.site_url')
-            file_url = urljoin(site_url,
-                             f"/dataset/{resource['package_id']}/resource/{resource['id']}/download/{resource['name']}")
-        else:
-            file_url = resource['url']
-
+        file_url = resource.get('url')
         # Fetch file content
         response = requests.get(file_url, timeout=10)
         response.raise_for_status()

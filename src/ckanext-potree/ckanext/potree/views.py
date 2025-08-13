@@ -68,8 +68,11 @@ def _fetch_scene_data(resource):
     from urllib.parse import urljoin
 
     try:
-        file_url = resource.get('url')
-        log.info(f"Fetching scene data from URL: {file_url}")
+        # Get file URL
+        file_url = urljoin("http://localhost:5000",
+                             f"/dataset/{resource['package_id']}/resource/{resource['id']}/download/{resource['name']}")
+
+        log.warning(f"Fetching Potree scene data from {file_url}")
         # Fetch file content
         response = requests.get(file_url, timeout=10)
         response.raise_for_status()

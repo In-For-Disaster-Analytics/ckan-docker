@@ -45,7 +45,7 @@ def get_blueprints():
             # Get package info for context
             package = toolkit.get_action('package_show')({}, {'id': resource['package_id']})
 
-            return toolkit.render('potree/viewer.html', {
+            return toolkit.render('potree/index.html', {
                 'resource': resource,
                 'package': package,
                 'scene_data': scene_data_parsed,
@@ -92,7 +92,7 @@ def _fetch_scene_data(resource):
         log.debug(f"Fetching scene data for resource: {resource_id}")
 
         content = None
-        
+
         # For uploaded files, try to access them directly from storage
         if resource.get('url_type') == 'upload':
             content = _read_local_file(resource)
@@ -116,7 +116,7 @@ def _fetch_scene_data(resource):
 
 def _read_local_file(resource):
     """Read content from local uploaded file"""
-    
+
     try:
         upload = uploader.get_resource_uploader(resource)
         file_path = upload.get_path(resource['id'])
@@ -132,7 +132,7 @@ def _read_local_file(resource):
 
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-        
+
         return content.strip() if content else None
 
     except Exception as e:
@@ -142,7 +142,7 @@ def _read_local_file(resource):
 
 def _fetch_remote_file(resource):
     """Fetch content from remote URL"""
-    
+
     file_url = resource.get('url')
     if not file_url:
         log.error(f"No URL found for resource: {resource['id']}")
@@ -169,7 +169,7 @@ def _fetch_remote_file(resource):
 
 def _parse_and_normalize_content(content):
     """Parse JSON5 content and return normalized JSON string"""
-    
+
     if not content:
         return None
 

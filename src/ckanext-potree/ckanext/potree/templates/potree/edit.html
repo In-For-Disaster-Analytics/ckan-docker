@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block subtitle %}{{ _('Edit Scene Configuration') }} - {{ resource.name }}{% endblock %}
+
+{% block breadcrumb_content %}
+  <li>{{ h.nav_link(_('Datasets'), controller='package', action='search') }}</li>
+  <li>{{ h.nav_link(package.title or package.name, controller='package', action='read', id=package.name) }}</li>
+  <li>{{ h.nav_link(resource.name or resource.id, controller='resource', action='read', id=package.name, resource_id=resource.id) }}</li>
+  <li class="active">{{ _('Edit Scene Configuration') }}</li>
+{% endblock %}
+
+{% block primary_content %}
+  <article class="module">
+    <div class="module-content">
+      <h1 class="page-heading">{{ _('Edit Scene Configuration') }}</h1>
+      
+      <div class="resource-info">
+        <h3>{{ resource.name or _('Unnamed resource') }}</h3>
+        <p><strong>{{ _('Format:') }}</strong> {{ resource.format }}</p>
+        <p><strong>{{ _('Package:') }}</strong> {{ package.title or package.name }}</p>
+      </div>
+
+      {% if error %}
+        <div class="alert alert-error">
+          <strong>{{ _('Error:') }}</strong> {{ error }}
+        </div>
+      {% endif %}
+
+      {% if success %}
+        <div class="alert alert-success">
+          <strong>{{ _('Success:') }}</strong> {{ success }}
+        </div>
+      {% endif %}
+
+      <form method="post" class="form-horizontal">
+        <div class="control-group">
+          <label class="control-label" for="content">{{ _('Scene Configuration (JSON5)') }}</label>
+          <div class="controls">
+            <textarea id="content" name="content" rows="25" class="form-control" style="font-family: monospace; width: 100%;">{{ content|e }}</textarea>
+            <p class="help-block">
+              {{ _('Edit the JSON5 scene configuration. Supports JSON5 syntax including comments and trailing commas.') }}
+              <br>
+              <a href="#" id="format-json" class="btn btn-mini">{{ _('Format JSON') }}</a>
+              <a href="#" id="validate-json" class="btn btn-mini">{{ _('Validate') }}</a>
+            </p>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="controls">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa fa-save"></i> {{ _('Save Changes') }}
+            </button>
+            <a href="{{ h.url_for('potree.scene_viewer', resource_id=resource.id) }}" class="btn">
+              <i class="fa fa-cube"></i> {{ _('View Scene') }}
+            </a>
+            <a href="{{ h.url_for('resource.read', id=package.name, resource_id=resource.id) }}" class="btn">
+              <i class="fa fa-arrow-left"></i> {{ _('Back to Resource') }}
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </article>
+
+  <div class="module">
+    <div class="module-content">
+      <h2>{{ _('Configuration Help') }}</h2>
+      
+      <div class="accordion" id="help-accordion">
+        <div class="accordion-group">
+          <div class="accordion-heading">
+            <a class="accordion-toggle" data-toggle="collapse" data-parent="#help-accordion" href="#basic-structure">
+              {{ _('Basic Structure') }}
+            </a>
+          </div>
+          <div id="basic-structure" class="accordion-body collapse">
+            <div class="accordion-inner">
+              <pre><code>{
+  "version": "2.0",
+  "name": "My Scene",
+  "description": "Scene description",
+  "pointclouds": [
+    {
+      "url": "./pointclouds/data/cloud.js",
+      "name": "Main Point Cloud",
+      "pointSize": 1,
+      "material": {
+        "activeAttributeName": "rgba"
+      }
+    }
+  ],
+  "camera": {
+    "position": [x, y, z],
+    "target": [x, y, z]
+  },
+  "settings": {
+    "pointBudget": 1000000,
+    "fov": 60,
+    "background": "gradient"
+  }
+}</code></pre>
+            </div>
+          </div>
+        </div>
+        
+        <div class="accordion-group">
+          <div class="accordion-heading">
+            <a class="accordion-toggle" data-toggle="collapse" data-parent="#help-accordion" href="#point-cloud-config">
+              {{ _('Point Cloud Configuration') }}
+            </a>
+          </div>
+          <div id="point-cloud-config" class="accordion-body collapse">
+            <div class="accordion-inner">
+              <p>{{ _('Point cloud objects support these properties:') }}</p>
+              <ul>
+                <li><code>url</code> - {{ _('Path to point cloud data') }}</li>
+                <li><code>name</code> - {{ _('Display name') }}</li>
+                <li><code>pointSize</code> - {{ _('Size of points (default: 1)') }}</li>
+                <li><code>position</code> - {{ _('Position [x, y, z]') }}</li>
+                <li><code>rotation</code> - {{ _('Rotation [x, y, z]') }}</li>
+                <li><code>scale</code> - {{ _('Scale [x, y, z]') }}</li>
+                <li><code>material</code> - {{ _('Material settings object') }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div class="accordion-group">
+          <div class="accordion-heading">
+            <a class="accordion-toggle" data-toggle="collapse" data-parent="#help-accordion" href="#json5-features">
+              {{ _('JSON5 Features') }}
+            </a>
+          </div>
+          <div id="json5-features" class="accordion-body collapse">
+            <div class="accordion-inner">
+              <p>{{ _('JSON5 extends JSON with these features:') }}</p>
+              <ul>
+                <li>{{ _('Single and multi-line comments') }} (<code>// comment</code>, <code>/* comment */</code>)</li>
+                <li>{{ _('Trailing commas in objects and arrays') }}</li>
+                <li>{{ _('Single quotes for strings') }}</li>
+                <li>{{ _('Unquoted property names') }}</li>
+                <li>{{ _('Hexadecimal numbers') }} (<code>0xFF</code>)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    $(document).ready(function() {
+      var editor = $('#content');
+      
+      // Format JSON button
+      $('#format-json').click(function(e) {
+        e.preventDefault();
+        try {
+          var content = editor.val();
+          var parsed = JSON.parse(content);
+          var formatted = JSON.stringify(parsed, null, 2);
+          editor.val(formatted);
+          showAlert('JSON formatted successfully', 'success');
+        } catch (error) {
+          showAlert('Invalid JSON: ' + error.message, 'error');
+        }
+      });
+      
+      // Validate JSON button
+      $('#validate-json').click(function(e) {
+        e.preventDefault();
+        try {
+          var content = editor.val();
+          JSON.parse(content);
+          showAlert('JSON is valid', 'success');
+        } catch (error) {
+          showAlert('Invalid JSON: ' + error.message, 'error');
+        }
+      });
+      
+      // Show alert function
+      function showAlert(message, type) {
+        var alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+        var alertHtml = '<div class="alert ' + alertClass + ' fade in">' +
+          '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+          '<strong>' + (type === 'success' ? 'Success: ' : 'Error: ') + '</strong>' + message +
+        '</div>';
+        
+        $('.module-content').first().prepend(alertHtml);
+        
+        setTimeout(function() {
+          $('.alert').alert('close');
+        }, 3000);
+      }
+      
+      // Auto-resize textarea
+      function autoResize() {
+        editor[0].style.height = 'auto';
+        editor[0].style.height = editor[0].scrollHeight + 'px';
+      }
+      
+      editor.on('input', autoResize);
+      autoResize();
+    });
+  </script>
+  
+  <style>
+    .resource-info {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+    }
+    
+    .help-block {
+      color: #666;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    
+    pre code {
+      background: #f8f8f8;
+      border: 1px solid #e1e1e8;
+      border-radius: 4px;
+      padding: 10px;
+      font-size: 12px;
+    }
+    
+    .accordion-group {
+      border: 1px solid #e5e5e5;
+      border-radius: 4px;
+      margin-bottom: 2px;
+    }
+    
+    .accordion-heading {
+      background: #f5f5f5;
+    }
+    
+    .accordion-toggle {
+      display: block;
+      padding: 8px 15px;
+      text-decoration: none;
+    }
+    
+    .accordion-inner {
+      padding: 9px 15px;
+    }
+  </style>
+{% endblock %}

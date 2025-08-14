@@ -153,28 +153,29 @@
 {% block scripts %}
   {{ super() }}
   <script>
-    $(document).ready(function() {
-      var editor = $('#content');
+    document.addEventListener('DOMContentLoaded', function() {
+      var editor = document.getElementById('content');
       
       // Format JSON button
-      $('#format-json').click(function(e) {
+      document.getElementById('format-json').addEventListener('click', function(e) {
         e.preventDefault();
         try {
-          var content = editor.val();
+          var content = editor.value;
           var parsed = JSON.parse(content);
           var formatted = JSON.stringify(parsed, null, 2);
-          editor.val(formatted);
+          editor.value = formatted;
           showAlert('JSON formatted successfully', 'success');
+          autoResize();
         } catch (error) {
           showAlert('Invalid JSON: ' + error.message, 'error');
         }
       });
       
       // Validate JSON button
-      $('#validate-json').click(function(e) {
+      document.getElementById('validate-json').addEventListener('click', function(e) {
         e.preventDefault();
         try {
-          var content = editor.val();
+          var content = editor.value;
           JSON.parse(content);
           showAlert('JSON is valid', 'success');
         } catch (error) {
@@ -186,24 +187,32 @@
       function showAlert(message, type) {
         var alertClass = type === 'success' ? 'alert-success' : 'alert-error';
         var alertHtml = '<div class="alert ' + alertClass + ' fade in">' +
-          '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+          '<button type="button" class="close" onclick="this.parentElement.remove()">&times;</button>' +
           '<strong>' + (type === 'success' ? 'Success: ' : 'Error: ') + '</strong>' + message +
         '</div>';
         
-        $('.module-content').first().prepend(alertHtml);
+        var moduleContent = document.querySelector('.module-content');
+        if (moduleContent) {
+          moduleContent.insertAdjacentHTML('afterbegin', alertHtml);
+        }
         
         setTimeout(function() {
-          $('.alert').alert('close');
+          var alerts = document.querySelectorAll('.alert');
+          alerts.forEach(function(alert) {
+            if (alert.parentElement) {
+              alert.parentElement.removeChild(alert);
+            }
+          });
         }, 3000);
       }
       
       // Auto-resize textarea
       function autoResize() {
-        editor[0].style.height = 'auto';
-        editor[0].style.height = editor[0].scrollHeight + 'px';
+        editor.style.height = 'auto';
+        editor.style.height = editor.scrollHeight + 'px';
       }
       
-      editor.on('input', autoResize);
+      editor.addEventListener('input', autoResize);
       autoResize();
     });
   </script>

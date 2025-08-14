@@ -10,9 +10,8 @@ class PotreePlugin(plugins.SingletonPlugin):
 
     # IConfigurer
     def update_config(self, config_):
-        toolkit.add_public_directory(config_, 'public')
         toolkit.add_template_directory(config_, 'templates')
-        toolkit.add_resource('public', 'ckanext-potree')
+        toolkit.add_public_directory(config_, 'public')
 
     # IBlueprint
     def get_blueprint(self):

@@ -65,17 +65,58 @@ def _is_potree_scene_resource(resource):
 def _fetch_scene_data(resource):
     """Fetch and parse scene data from resource"""
     import requests
-    from urllib.parse import urljoin
+    import os
+    import ckan.lib.uploader as uploader
 
     try:
-        # Get file URL
         logging.warning(f"Resource metadata: {resource}")
+        
+        # For uploaded files, try to access them directly from storage
+        if resource.get('url_type') == 'upload':
+            try:
+                # Use CKAN's uploader to get the file path
+                upload = uploader.get_resource_uploader(resource)
+                file_path = upload.get_path(resource['id'])
+                
+                if file_path and os.path.exists(file_path):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    log.info(f"Successfully read scene data from local file: {file_path}")
+                    return json.loads(content) if content.strip() else None
+                        
+            except Exception as e:
+                log.warning(f"Failed to read local file, falling back to HTTP: {e}")
+        
+        # Fallback to HTTP request with authentication
         file_url = resource.get('url')
-        # Fetch file content
-        response = requests.get(file_url, timeout=10)
+        if not file_url:
+            log.error("No URL found for resource")
+            return None
+            
+        # Add authentication headers for internal requests
+        headers = {}
+        api_key = config.get('ckan.site_api_key')
+        if api_key:
+            headers['Authorization'] = api_key
+            
+        # Increase timeout for larger files
+        response = requests.get(file_url, headers=headers, timeout=30)
         response.raise_for_status()
-        scene_data = response.text()
-        return scene_data
+        
+        content = response.text
+        if not content.strip():
+            log.error("Empty response from scene data URL")
+            return None
+            
+        # Parse JSON content
+        try:
+            scene_data = json.loads(content)
+            log.info("Successfully fetched and parsed scene data via HTTP")
+            return scene_data
+        except json.JSONDecodeError:
+            # If it's not valid JSON, return as text (might be JSON5)
+            log.info("Content is not valid JSON, returning as text")
+            return content
 
     except requests.RequestException as e:
         log.error(f"Failed to fetch scene data: {e}")

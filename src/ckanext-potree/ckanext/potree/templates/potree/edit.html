@@ -1,11 +1,11 @@
-{% extends "base.html" %}
+{% extends "page.html" %}
 
 {% block subtitle %}{{ _('Edit Scene Configuration') }} - {{ resource.name }}{% endblock %}
 
 {% block breadcrumb_content %}
-  <li>{{ h.nav_link(_('Datasets'), controller='package', action='search') }}</li>
-  <li>{{ h.nav_link(package.title or package.name, controller='package', action='read', id=package.name) }}</li>
-  <li>{{ h.nav_link(resource.name or resource.id, controller='resource', action='read', id=package.name, resource_id=resource.id) }}</li>
+  <li>{% link_for _('Datasets'), named_route='dataset.search' %}</li>
+  <li>{% link_for package.title|truncate(30), named_route='dataset.read', id=package.name %}</li>
+  <li>{% link_for resource.name|truncate(30), named_route='resource.read', id=package.name, resource_id=resource.id %}</li>
   <li class="active">{{ _('Edit Scene Configuration') }}</li>
 {% endblock %}
 
@@ -150,6 +150,58 @@
   </div>
 {% endblock %}
 
+{% block styles %}
+  {{ super() }}
+  <style>
+    .resource-info {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    
+    .form-control {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+    }
+    
+    .help-block {
+      color: #666;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    
+    pre code {
+      background: #f8f8f8;
+      border: 1px solid #e1e1e8;
+      border-radius: 4px;
+      padding: 10px;
+      font-size: 12px;
+    }
+    
+    .accordion-group {
+      border: 1px solid #e5e5e5;
+      border-radius: 4px;
+      margin-bottom: 2px;
+    }
+    
+    .accordion-heading {
+      background: #f5f5f5;
+    }
+    
+    .accordion-toggle {
+      display: block;
+      padding: 8px 15px;
+      text-decoration: none;
+    }
+    
+    .accordion-inner {
+      padding: 9px 15px;
+    }
+  </style>
+{% endblock %}
+
 {% block scripts %}
   {{ super() }}
   <script>
@@ -227,53 +279,4 @@
       }
     });
   </script>
-  
-  <style>
-    .resource-info {
-      background: #f5f5f5;
-      padding: 15px;
-      border-radius: 4px;
-      margin-bottom: 20px;
-    }
-    
-    .form-control {
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 8px;
-    }
-    
-    .help-block {
-      color: #666;
-      font-size: 12px;
-      margin-top: 5px;
-    }
-    
-    pre code {
-      background: #f8f8f8;
-      border: 1px solid #e1e1e8;
-      border-radius: 4px;
-      padding: 10px;
-      font-size: 12px;
-    }
-    
-    .accordion-group {
-      border: 1px solid #e5e5e5;
-      border-radius: 4px;
-      margin-bottom: 2px;
-    }
-    
-    .accordion-heading {
-      background: #f5f5f5;
-    }
-    
-    .accordion-toggle {
-      display: block;
-      padding: 8px 15px;
-      text-decoration: none;
-    }
-    
-    .accordion-inner {
-      padding: 9px 15px;
-    }
-  </style>
 {% endblock %}

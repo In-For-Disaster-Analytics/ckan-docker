@@ -7,7 +7,7 @@ def is_potree_resource(resource):
         return False
 
     format_name = resource.get('format', '').lower()
-    return format_name in ['potree-workspace', 'potree-scene', 'potree']
+    return format_name in ['potree-workspace', 'potree-scene', 'potree', 'json5']
 
 def can_view_potree(resource_id):
     """Check if current user can view Potree scene"""

@@ -1,5 +1,5 @@
 # ckanext/potree/views.py
-from flask import Blueprint
+from flask import Blueprint, jsonify
 import ckan.plugins.toolkit as toolkit
 from ckan.common import _, request, config
 import logging
@@ -125,6 +125,72 @@ def get_blueprints():
         except Exception as e:
             log.error(f"Error editing Potree scene {resource_id}: {str(e)}")
             toolkit.abort(500, _("Error editing scene data"))
+
+    @blueprint.route('/dataset/potree/<resource_id>/save', methods=['POST'])
+    def save_scene(resource_id):
+        """Save scene data from Potree viewer back to resource file"""
+        try:
+            # Check resource exists and get metadata
+            resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
+
+            # Check user permissions - require edit access
+            toolkit.check_access('resource_update', {}, {'id': resource_id})
+
+            # Validate it's a Potree scene file
+            if not _is_potree_scene_resource(resource):
+                return jsonify({
+                    'success': False,
+                    'error': 'Resource is not a Potree scene file'
+                }), 400
+
+            # Get content from form data
+            new_content = request.form.get('content', '').strip()
+            
+            if not new_content:
+                return jsonify({
+                    'success': False,
+                    'error': 'Content cannot be empty'
+                }), 400
+
+            try:
+                # Validate JSON5 syntax
+                json5.loads(new_content)
+                
+                # Save the content
+                if _save_scene_data(resource, new_content):
+                    log.info(f"Scene data saved successfully for resource: {resource_id}")
+                    return jsonify({
+                        'success': True,
+                        'message': 'Scene data saved successfully'
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Failed to save scene data'
+                    }), 500
+                    
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'Invalid JSON5 syntax: {str(e)}'
+                }), 400
+
+        except toolkit.ObjectNotFound:
+            return jsonify({
+                'success': False,
+                'error': 'Resource not found'
+            }), 404
+        except toolkit.NotAuthorized:
+            return jsonify({
+                'success': False,
+                'error': 'Not authorized to edit this resource'
+            }), 403
+        except Exception as e:
+            log.error(f"Error saving Potree scene {resource_id}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Error saving scene data'
+            }), 500
 
     return blueprint
 

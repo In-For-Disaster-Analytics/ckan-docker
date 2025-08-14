@@ -155,9 +155,16 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       var editor = document.getElementById('content');
+      var formatBtn = document.getElementById('format-json');
+      var validateBtn = document.getElementById('validate-json');
+      
+      if (!editor || !formatBtn || !validateBtn) {
+        console.warn('Edit page elements not found');
+        return;
+      }
       
       // Format JSON button
-      document.getElementById('format-json').addEventListener('click', function(e) {
+      formatBtn.addEventListener('click', function(e) {
         e.preventDefault();
         try {
           var content = editor.value;
@@ -172,7 +179,7 @@
       });
       
       // Validate JSON button
-      document.getElementById('validate-json').addEventListener('click', function(e) {
+      validateBtn.addEventListener('click', function(e) {
         e.preventDefault();
         try {
           var content = editor.value;
@@ -208,12 +215,16 @@
       
       // Auto-resize textarea
       function autoResize() {
-        editor.style.height = 'auto';
-        editor.style.height = editor.scrollHeight + 'px';
+        if (editor) {
+          editor.style.height = 'auto';
+          editor.style.height = editor.scrollHeight + 'px';
+        }
       }
       
-      editor.addEventListener('input', autoResize);
-      autoResize();
+      if (editor) {
+        editor.addEventListener('input', autoResize);
+        autoResize();
+      }
     });
   </script>
   

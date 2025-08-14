@@ -627,6 +627,22 @@
 				
 				showSaveNotification('💾 Saving scene data...', 'progress', 2000);
 
+				// Check if scene has point clouds
+				if (!viewer.scene.pointclouds || viewer.scene.pointclouds.length === 0) {
+					throw new Error('No point clouds loaded in scene. Cannot save project without point cloud data.');
+				}
+
+				// Debug: Log point cloud info
+				console.log('Point clouds in scene:', viewer.scene.pointclouds.length);
+				viewer.scene.pointclouds.forEach((pc, i) => {
+					console.log(`Point cloud ${i}:`, {
+						name: pc.name,
+						visible: pc.visible,
+						pcoGeometry: !!pc.pcoGeometry,
+						url: pc.pcoGeometry?.url
+					});
+				});
+
 				// Get current scene data using Potree's saveProject
 				const sceneData = Potree.saveProject(viewer);
 				const sceneDataString = JSON5.stringify(sceneData, null, '\t');

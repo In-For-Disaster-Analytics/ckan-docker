@@ -13,6 +13,7 @@ class PotreePlugin(plugins.SingletonPlugin):
         toolkit.add_template_directory(config_, 'templates')
         toolkit.add_public_directory(config_, 'public')
         toolkit.add_resource('public', 'potree')
+        toolkit.add_resource('assets', 'ckanext-potree')
 
     # IBlueprint
     def get_blueprint(self):

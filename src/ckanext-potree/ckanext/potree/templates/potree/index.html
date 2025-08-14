@@ -643,9 +643,9 @@
 					});
 				});
 
-				// Get current scene data using Potree's saveProject
-				const sceneData = Potree.saveProject(viewer);
-				const sceneDataString = JSON5.stringify(sceneData, null, '\t');
+				// Get current scene data using Potree's saveProject (exactly like sidebar export)
+				let data = Potree.saveProject(viewer);
+				let dataString = JSON5.stringify(data, null, "\t");
 
 				// Send to backend
 				const response = await fetch(`/dataset/potree/${resourceData.id}/save`, {
@@ -653,7 +653,7 @@
 					headers: {
 						'Content-Type': 'application/x-www-form-urlencoded',
 					},
-					body: `content=${encodeURIComponent(sceneDataString)}`
+					body: `content=${encodeURIComponent(dataString)}`
 				});
 
 				if (response.ok) {

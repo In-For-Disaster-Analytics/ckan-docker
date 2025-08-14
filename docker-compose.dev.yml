@@ -27,6 +27,8 @@ services:
       dockerfile: Dockerfile.dev
       args:
         - TZ=UTC
+    extra_hosts:
+      - 'ckan.tacc.cloud:localhost'
     env_file:
       - .env.dev.config
       - .env.dev.secrets

@@ -70,10 +70,7 @@ def _fetch_scene_data(resource):
     try:
         # Get file URL
         logging.warning(f"Resource metadata: {resource}")
-        file_url = urljoin("http://localhost:5000",
-                             f"/dataset/{resource['package_id']}/resource/{resource['id']}/download/{resource['name']}")
-
-
+        file_url = resource.get('url')
         # Fetch file content
         response = requests.get(file_url, timeout=10)
         response.raise_for_status()

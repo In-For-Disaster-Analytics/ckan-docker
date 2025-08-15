@@ -289,6 +289,7 @@
 
 		// Fetch configuration with error handling
 		async function fetchConfiguration(url) {
+			console.log("fetching configuration from URL:", url);
 			try {
 				const response = await fetch(url);
 
@@ -365,6 +366,7 @@
 				}
 
 				// Apply configuration directly
+				console.log('Applying CKAN scene data:', sceneData);
 				await applySceneConfiguration(sceneData);
 
 				hideLoading();
@@ -387,103 +389,18 @@
 		// Apply scene configuration to viewer
 		async function applySceneConfiguration(config) {
 			try {
-				// Set description if available
-				if (config.description) {
-					viewer.setDescription(config.description);
-				}
-
-				// Load point clouds if available
-				if (config.pointclouds && config.pointclouds.length > 0) {
-					for (const pointCloudConfig of config.pointclouds) {
-						await loadPointCloudFromConfig(pointCloudConfig);
-					}
-				}
-
-				// Apply camera settings if available
-				if (config.camera) {
-					applyCameraSettings(config.camera);
-				}
-
-				// Apply viewer settings if available
-				if (config.settings) {
-					applyViewerSettings(config.settings);
-				}
-
+				Potree.loadProject(viewer, config);
 			} catch (error) {
 				console.error('Error applying scene configuration:', error);
 				throw error;
 			}
 		}
 
-		// Load point cloud from configuration
-		async function loadPointCloudFromConfig(pointCloudConfig) {
-			return new Promise((resolve, reject) => {
-				const url = pointCloudConfig.url || pointCloudConfig.path;
-				const name = pointCloudConfig.name || 'pointcloud';
-
-				Potree.loadPointCloud(url, name, e => {
-					try {
-						let scene = viewer.scene;
-						let pointcloud = e.pointcloud;
-
-						let material = pointcloud.material;
-						material.size = pointCloudConfig.pointSize || 1;
-						material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
-						material.shape = Potree.PointShape.SQUARE;
-
-						// Apply material settings if available
-						if (pointCloudConfig.material) {
-							Object.assign(material, pointCloudConfig.material);
-						}
-
-						scene.addPointCloud(pointcloud);
-
-						// Apply transformation if available
-						if (pointCloudConfig.position) {
-							pointcloud.position.set(...pointCloudConfig.position);
-						}
-						if (pointCloudConfig.rotation) {
-							pointcloud.rotation.set(...pointCloudConfig.rotation);
-						}
-						if (pointCloudConfig.scale) {
-							pointcloud.scale.set(...pointCloudConfig.scale);
-						}
-
-						viewer.fitToScreen();
-						resolve();
-					} catch (error) {
-						reject(error);
-					}
-				});
-			});
-		}
-
-		// Apply camera settings
-		function applyCameraSettings(cameraConfig) {
-			if (cameraConfig.position) {
-				viewer.scene.getActiveCamera().position.set(...cameraConfig.position);
-			}
-			if (cameraConfig.target) {
-				viewer.scene.view.lookAt(...cameraConfig.target);
-			}
-		}
-
-		// Apply viewer settings
-		function applyViewerSettings(settings) {
-			if (settings.pointBudget) {
-				viewer.setPointBudget(settings.pointBudget);
-			}
-			if (settings.fov) {
-				viewer.setFOV(settings.fov);
-			}
-			if (settings.background) {
-				viewer.setBackground(settings.background);
-			}
-		}
 
 		// Load configuration and apply to viewer
 		async function loadConfigurationFromURL(configUrl) {
 			try {
+				console.log("loading configuration from URL:", configUrl);
 				showLoading();
 
 				// Validate URL

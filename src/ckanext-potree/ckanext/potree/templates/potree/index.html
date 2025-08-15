@@ -535,12 +535,16 @@
 				return;
 			}
 
+			// Get save button and store original text before try block
+			const saveBtn = document.getElementById('save-scene-btn');
+			const originalText = saveBtn ? saveBtn.innerHTML : 'Save Scene';
+
 			try {
 				// Disable save button and show progress
-				const saveBtn = document.getElementById('save-scene-btn');
-				const originalText = saveBtn.innerHTML;
-				saveBtn.disabled = true;
-				saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+				if (saveBtn) {
+					saveBtn.disabled = true;
+					saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+				}
 
 				showSaveNotification('💾 Saving scene data...', 'progress', 2000);
 

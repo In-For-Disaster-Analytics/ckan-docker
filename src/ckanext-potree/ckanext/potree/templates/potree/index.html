@@ -12,7 +12,7 @@
 	<link rel="stylesheet" type="text/css" href="/potree/libs/openlayers3/ol.css">
 	<link rel="stylesheet" type="text/css" href="/potree/libs/spectrum/spectrum.css">
 	<link rel="stylesheet" type="text/css" href="/potree/libs/jstree/themes/mixed/style.css">
-	
+
 	<style>
 		.error-container {
 			position: absolute;
@@ -172,7 +172,7 @@
 			format: "{% if resource %}{{ resource.format }}{% endif %}"
 		};
 	</script>
-	
+
 	<script type="module">
 		// Import JSON5 support
 		import JSON5 from '/potree/libs/json5-2.1.3/json5.mjs';
@@ -182,7 +182,7 @@
 	<div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px;">
 		<div id="potree_render_area" style="background-image: url('/potree/build/potree/resources/images/background.jpg');"></div>
 		<div id="potree_sidebar_container"></div>
-		
+
 		<!-- Save Button -->
 		<div id="save-controls" style="position: absolute; top: 20px; right: 20px; z-index: 1000; display: none;">
 			<button id="save-scene-btn" class="btn btn-primary" style="background: #007cba; border: none; color: white; padding: 10px 15px; border-radius: 4px; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
@@ -190,13 +190,13 @@
 			</button>
 		</div>
 	</div>
-	
+
 	<!-- Loading indicator -->
 	<div id="loading-indicator" class="loading-container" style="display: none;">
 		<div class="spinner"></div>
 		<div>Loading configuration...</div>
 	</div>
-	
+
 	<!-- Error display -->
 	<div id="error-container" class="error-container" style="display: none;">
 		<div class="error-title">Configuration Loading Error</div>
@@ -209,12 +209,12 @@
 
 	<script type="module">
 		import * as THREE from "/potree/libs/three.js/build/three.module.js";
-		
+
 		// Global variables
 		window.viewer = null;
 		let configUrl = null;
 		let urlParams = null;
-		
+
 		// Parse CKAN template data and URL parameters for fallback
 		function parseParameters() {
 			const params = new URLSearchParams(window.location.search);
@@ -226,49 +226,49 @@
 				resourceData: window.ckanResourceData
 			};
 		}
-		
+
 		// Show loading indicator
 		function showLoading() {
 			document.getElementById('loading-indicator').style.display = 'block';
 			document.getElementById('error-container').style.display = 'none';
 		}
-		
+
 		// Hide loading indicator
 		function hideLoading() {
 			document.getElementById('loading-indicator').style.display = 'none';
 		}
-		
+
 		// Show error with detailed information
 		function showError(title, message, details = null, showRetry = true) {
 			hideLoading();
 			const errorContainer = document.getElementById('error-container');
 			const errorMessage = document.getElementById('error-message');
 			const errorDetails = document.getElementById('error-details');
-			
+
 			document.querySelector('.error-title').textContent = title;
 			errorMessage.textContent = message;
-			
+
 			if (details) {
 				errorDetails.textContent = details;
 				errorDetails.style.display = 'block';
 			} else {
 				errorDetails.style.display = 'none';
 			}
-			
+
 			errorContainer.style.display = 'block';
 		}
-		
+
 		// Hide error display
 		function hideError() {
 			document.getElementById('error-container').style.display = 'none';
 		}
-		
+
 		// Validate configuration URL (only allow absolute paths for security)
 		function validateConfigUrl(url) {
 			if (!url) {
 				throw new Error('No configuration URL provided');
 			}
-			
+
 			// Security check: only allow absolute paths, no external URLs for security
 			if (url.startsWith('http://') || url.startsWith('https://')) {
 				// Allow same-origin URLs only
@@ -278,31 +278,31 @@
 					throw new Error('External configuration URLs are not allowed for security reasons');
 				}
 			}
-			
+
 			// Ensure the URL ends with .json or .json5
 			if (!url.match(/\.(json5?|JSON5?)(\?.*)?$/)) {
 				throw new Error('Configuration must be a JSON or JSON5 file');
 			}
-			
+
 			return url;
 		}
-		
+
 		// Fetch configuration with error handling
 		async function fetchConfiguration(url) {
 			try {
 				const response = await fetch(url);
-				
+
 				if (!response.ok) {
 					throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 				}
-				
+
 				const contentType = response.headers.get('content-type');
 				if (!contentType || !contentType.includes('application/json')) {
 					console.warn('Configuration file does not have JSON content-type');
 				}
-				
+
 				const configText = await response.text();
-				
+
 				// Try to parse as JSON5 first, then JSON
 				let config;
 				try {
@@ -315,14 +315,14 @@
 				} catch (parseError) {
 					throw new Error(`Invalid JSON format: ${parseError.message}`);
 				}
-				
+
 				// Validate configuration structure
 				if (!config || typeof config !== 'object') {
 					throw new Error('Configuration must be a valid JSON object');
 				}
-				
+
 				return config;
-				
+
 			} catch (error) {
 				if (error.name === 'TypeError' && error.message.includes('fetch')) {
 					throw new Error(`Network error: Unable to fetch configuration. Check the URL and CORS settings.`);
@@ -330,18 +330,18 @@
 				throw error;
 			}
 		}
-		
+
 		// Initialize Potree viewer
 		function initializeViewer() {
 			window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
-			
+
 			// Set default viewer settings
 			viewer.setEDLEnabled(true);
 			viewer.setFOV(60);
 			viewer.setPointBudget(1_000_000);
 			viewer.loadSettingsFromURL();
 			viewer.setBackground("gradient");
-			
+
 			return viewer.loadGUI().then(() => {
 				viewer.setLanguage('en');
 				$("#menu_tools").next().show();
@@ -349,41 +349,41 @@
 				viewer.toggleSidebar();
 			});
 		}
-		
+
 		// Load configuration directly from CKAN data
 		async function loadConfigurationFromCKAN(sceneData) {
 			try {
 				showLoading();
-				
+
 				if (!sceneData) {
 					throw new Error('No scene data provided from CKAN');
 				}
-				
+
 				// Initialize viewer if not already done
 				if (!window.viewer) {
 					await initializeViewer();
 				}
-				
+
 				// Apply configuration directly
 				await applySceneConfiguration(sceneData);
-				
+
 				hideLoading();
 				hideError();
-				
+
 				if (urlParams.debug) {
 					console.log('CKAN scene data loaded successfully:', sceneData);
 				}
-				
+
 			} catch (error) {
 				console.error('CKAN configuration loading error:', error);
 				showError(
-					'CKAN Configuration Loading Failed', 
+					'CKAN Configuration Loading Failed',
 					error.message,
 					`Scene data: ${JSON.stringify(sceneData, null, 2)}\nError: ${error.stack || error.message}`
 				);
 			}
 		}
-		
+
 		// Apply scene configuration to viewer
 		async function applySceneConfiguration(config) {
 			try {
@@ -391,53 +391,53 @@
 				if (config.description) {
 					viewer.setDescription(config.description);
 				}
-				
+
 				// Load point clouds if available
 				if (config.pointclouds && config.pointclouds.length > 0) {
 					for (const pointCloudConfig of config.pointclouds) {
 						await loadPointCloudFromConfig(pointCloudConfig);
 					}
 				}
-				
+
 				// Apply camera settings if available
 				if (config.camera) {
 					applyCameraSettings(config.camera);
 				}
-				
+
 				// Apply viewer settings if available
 				if (config.settings) {
 					applyViewerSettings(config.settings);
 				}
-				
+
 			} catch (error) {
 				console.error('Error applying scene configuration:', error);
 				throw error;
 			}
 		}
-		
+
 		// Load point cloud from configuration
 		async function loadPointCloudFromConfig(pointCloudConfig) {
 			return new Promise((resolve, reject) => {
 				const url = pointCloudConfig.url || pointCloudConfig.path;
 				const name = pointCloudConfig.name || 'pointcloud';
-				
+
 				Potree.loadPointCloud(url, name, e => {
 					try {
 						let scene = viewer.scene;
 						let pointcloud = e.pointcloud;
-						
+
 						let material = pointcloud.material;
 						material.size = pointCloudConfig.pointSize || 1;
 						material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
 						material.shape = Potree.PointShape.SQUARE;
-						
+
 						// Apply material settings if available
 						if (pointCloudConfig.material) {
 							Object.assign(material, pointCloudConfig.material);
 						}
-						
+
 						scene.addPointCloud(pointcloud);
-						
+
 						// Apply transformation if available
 						if (pointCloudConfig.position) {
 							pointcloud.position.set(...pointCloudConfig.position);
@@ -448,7 +448,7 @@
 						if (pointCloudConfig.scale) {
 							pointcloud.scale.set(...pointCloudConfig.scale);
 						}
-						
+
 						viewer.fitToScreen();
 						resolve();
 					} catch (error) {
@@ -457,7 +457,7 @@
 				});
 			});
 		}
-		
+
 		// Apply camera settings
 		function applyCameraSettings(cameraConfig) {
 			if (cameraConfig.position) {
@@ -467,7 +467,7 @@
 				viewer.scene.view.lookAt(...cameraConfig.target);
 			}
 		}
-		
+
 		// Apply viewer settings
 		function applyViewerSettings(settings) {
 			if (settings.pointBudget) {
@@ -485,64 +485,64 @@
 		async function loadConfigurationFromURL(configUrl) {
 			try {
 				showLoading();
-				
+
 				// Validate URL
 				const validatedUrl = validateConfigUrl(configUrl);
-				
+
 				// Fetch configuration
 				const config = await fetchConfiguration(validatedUrl);
-				
+
 				// Initialize viewer if not already done
 				if (!window.viewer) {
 					await initializeViewer();
 				}
-				
+
 				// Load the project configuration
 				await viewer.loadProject(validatedUrl);
-				
+
 				hideLoading();
 				hideError();
-				
+
 				if (urlParams.debug) {
 					console.log('Configuration loaded successfully:', config);
 				}
-				
+
 			} catch (error) {
 				console.error('Configuration loading error:', error);
 				showError(
-					'Configuration Loading Failed', 
+					'Configuration Loading Failed',
 					error.message,
 					`URL: ${configUrl}\nError: ${error.stack || error.message}`
 				);
 			}
 		}
-		
+
 		// Load default fallback view
 		async function loadDefaultView() {
 			try {
 				hideError();
 				showLoading();
-				
+
 				// Initialize viewer if not already done
 				if (!window.viewer) {
 					await initializeViewer();
 				}
-				
+
 				// Set default description
 				viewer.setDescription("Potree Viewer - Default view loaded due to configuration error");
-				
+
 				// Load default point cloud (if available)
 				try {
 					await new Promise((resolve, reject) => {
 						Potree.loadPointCloud("./pointclouds/vol_total/cloud.js", "default", e => {
 							let scene = viewer.scene;
 							let pointcloud = e.pointcloud;
-							
+
 							let material = pointcloud.material;
 							material.size = 1;
 							material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
 							material.shape = Potree.PointShape.SQUARE;
-							
+
 							scene.addPointCloud(pointcloud);
 							viewer.fitToScreen();
 							resolve();
@@ -551,15 +551,15 @@
 				} catch (pointCloudError) {
 					console.warn('Default point cloud not available:', pointCloudError);
 				}
-				
+
 				hideLoading();
-				
+
 			} catch (error) {
 				console.error('Failed to load default view:', error);
 				showError('Initialization Failed', 'Unable to initialize the viewer', error.message);
 			}
 		}
-		
+
 		// Retry loading configuration
 		window.retryConfiguration = function() {
 			if (urlParams && urlParams.ckanData) {
@@ -570,10 +570,10 @@
 				loadDefaultView();
 			}
 		};
-		
+
 		// Load default view (global function for button)
 		window.loadDefaultView = loadDefaultView;
-		
+
 		// Report issue (opens GitHub issues page)
 		window.reportIssue = function() {
 			const issueUrl = 'https://github.com/mosoriob/potree/issues/new';
@@ -587,15 +587,15 @@
 			// Remove existing notifications
 			const existingNotifications = document.querySelectorAll('.save-notification');
 			existingNotifications.forEach(n => n.remove());
-			
+
 			// Create notification element
 			const notification = document.createElement('div');
 			notification.className = `save-notification save-${type}`;
 			notification.innerHTML = message;
-			
+
 			// Add to DOM
 			document.body.appendChild(notification);
-			
+
 			// Auto-remove after duration
 			setTimeout(() => {
 				if (notification.parentElement) {
@@ -624,7 +624,7 @@
 				const originalText = saveBtn.innerHTML;
 				saveBtn.disabled = true;
 				saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
-				
+
 				showSaveNotification('💾 Saving scene data...', 'progress', 2000);
 
 				// Check if scene has point clouds
@@ -644,7 +644,7 @@
 				});
 
 				// Get current scene data using Potree's saveProject (exactly like sidebar export)
-				let data = Potree.saveProject(viewer);
+				let data = viewer.saveProject()
 				let dataString = JSON5.stringify(data, null, "\t");
 
 				// Send to backend
@@ -685,61 +685,61 @@
 		function initializeSaveControls() {
 			const saveControls = document.getElementById('save-controls');
 			const saveBtn = document.getElementById('save-scene-btn');
-			
+
 			if (saveControls && saveBtn) {
 				// Show save controls if we have a resource
 				if (window.ckanResourceData && window.ckanResourceData.id) {
 					saveControls.style.display = 'block';
 				}
-				
+
 				// Attach save event
 				saveBtn.addEventListener('click', saveSceneData);
 			}
 		}
-		
+
 		// Main initialization
 		async function main() {
 			try {
 				// Parse parameters (both CKAN and URL)
 				urlParams = parseParameters();
-				
+
 				if (urlParams.debug) {
 					console.log('Parameters:', urlParams);
 				}
-				
+
 				// Priority 1: Use CKAN scene data if available
 				if (urlParams.ckanData) {
 					await loadConfigurationFromCKAN(urlParams.ckanData);
-				} 
+				}
 				// Priority 2: Use URL config parameter
 				else if (urlParams.config) {
 					configUrl = urlParams.config;
 					await loadConfigurationFromURL(configUrl);
-				} 
+				}
 				// Priority 3: Direct point cloud loading (legacy support)
 				else if (urlParams.pointcloud) {
 					await initializeViewer();
 					viewer.setDescription("Potree Viewer - Direct point cloud loading");
-					
+
 					Potree.loadPointCloud(urlParams.pointcloud, "pointcloud", e => {
 						let scene = viewer.scene;
 						let pointcloud = e.pointcloud;
-						
+
 						let material = pointcloud.material;
 						material.size = 1;
 						material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
 						material.shape = Potree.PointShape.SQUARE;
-						
+
 						scene.addPointCloud(pointcloud);
 						viewer.fitToScreen();
 					});
-				} 
+				}
 				// Priority 4: Show instructions and resource info
 				else {
 					await initializeViewer();
 					const resourceInfo = urlParams.resourceData;
 					const hasResource = resourceInfo && resourceInfo.id;
-					
+
 					viewer.setDescription(`
 						<h3>Potree Viewer - CKAN Integration</h3>
 						${hasResource ? `
@@ -762,25 +762,25 @@
 						</div>
 						${!hasResource && !urlParams.ckanData ? `
 							<div class="alert alert-info">
-								<strong>Note:</strong> No scene data was provided. This viewer is designed to work 
+								<strong>Note:</strong> No scene data was provided. This viewer is designed to work
 								with CKAN resources containing Potree scene configurations.
 							</div>
 						` : ''}
 					`);
 				}
-				
+
 				// Initialize save controls after everything is loaded
 				initializeSaveControls();
-				
+
 			} catch (error) {
 				console.error('Initialization error:', error);
 				showError('Initialization Error', error.message, error.stack);
 			}
 		}
-		
+
 		// Start the application
 		main();
-		
+
 	</script>
 </body>
 </html>

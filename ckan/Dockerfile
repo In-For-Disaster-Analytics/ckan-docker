@@ -1,9 +1,3 @@
-# Download Potree assets from GitHub release
-FROM node:18 AS potree-assets
-WORKDIR /tmp
-RUN wget https://github.com/mosoriob/potree/releases/download/v1.8.1/potree-dist.tar.gz && \
-    tar -xzf potree-dist.tar.gz
-
 FROM ckan/ckan-base:2.9-py3.9
 # Install any extensions needed by your CKAN instance
 # See Dockerfile.dev for more details and examples

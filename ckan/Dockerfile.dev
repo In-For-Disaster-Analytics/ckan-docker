@@ -29,7 +29,7 @@ RUN pip3 install "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-s
 RUN pip3 install ckanext-pdfview
 COPY docker-entrypoint.d/* /docker-entrypoint.d/
 COPY patches ${APP_DIR}/patches
-RUN mkdir -p /${APP_DIR}/assets/potree
+RUN mkdir -p ${APP_DIR}/assets/potree
 COPY --from=potree-assets /tmp/potree/ /srv/potree-assets/potree
 COPY --from=potree-assets /tmp/libs/ /srv/potree-assets/potree/libs/
 

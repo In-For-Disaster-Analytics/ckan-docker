@@ -1,3 +1,9 @@
+# Download Potree assets from GitHub release
+FROM node:18 AS potree-assets
+WORKDIR /tmp
+RUN wget https://github.com/mosoriob/potree/releases/download/v1.8.1/potree-dist.tar.gz && \
+    tar -xzf potree-dist.tar.gz
+
 FROM ckan/ckan-base:2.9-py3.9
 # Install any extensions needed by your CKAN instance
 # See Dockerfile.dev for more details and examples
@@ -40,6 +46,13 @@ RUN cd ${APP_DIR}/src/ckanext-dso_scheming && python3 setup.py develop --user
 # Tapis Filestore
 COPY --chown=ckan:ckan-sys src/ckanext-tapisfilestore ${APP_DIR}/src/ckanext-tapisfilestore
 RUN cd ${APP_DIR}/src/ckanext-tapisfilestore && python3 setup.py develop --user
+# Potree Extension
+COPY --chown=ckan:ckan-sys src/ckanext-potree ${APP_DIR}/src/ckanext-potree
+RUN cd ${APP_DIR}/src/ckanext-potree && python3 setup.py develop --user
+# Copy Potree assets from the build stage
+COPY --from=potree-assets /tmp/potree/ /srv/app/src/ckanext-potree/ckanext/potree/public/potree/
+COPY --from=potree-assets /tmp/libs/ /srv/app/src/ckanext-potree/ckanext/potree/public/potree/libs
+
 # Copy custom initialization scripts
 #COPY ckan/docker-entrypoint.d/* /docker-entrypoint.d/
 

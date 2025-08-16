@@ -1,3 +1,9 @@
+# Download Potree assets from GitHub release
+FROM node:18 AS potree-assets
+WORKDIR /tmp
+RUN wget https://github.com/mosoriob/potree/releases/download/test-v0.0.4/potree-dist.tar.gz && \
+    tar -xzf potree-dist.tar.gz
+
 FROM ckan/ckan-dev:2.9-py3.9
 # Install any extensions needed by your CKAN instance
 # See Dockerfile.dev for more details and examples
@@ -23,6 +29,8 @@ RUN pip3 install "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-s
 RUN pip3 install ckanext-pdfview
 COPY docker-entrypoint.d/* /docker-entrypoint.d/
 COPY patches ${APP_DIR}/patches
+COPY --from=potree-assets /tmp/potree/ /srv/app/src/ckanext-potree/ckanext/potree/public/potree/
+COPY --from=potree-assets /tmp/libs/ /srv/app/src/ckanext-potree/ckanext/potree/public/potree/libs
 
 RUN for d in $APP_DIR/patches/*; do \
     if [ -d $d ]; then \

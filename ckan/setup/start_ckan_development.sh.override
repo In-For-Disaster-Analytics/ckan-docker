@@ -94,6 +94,9 @@ fi
 
 # Start supervisord
 supervisord --configuration /etc/supervisord.conf &
-
+wget https://github.com/mosoriob/potree/releases/download/test-v0.0.4/potree-dist.tar.gz && \
+    tar -xzf potree-dist.tar.gz
+cp -r potree ${APP_DIR}/src/ckanext-potree/ckanext/potree/public/
+cp -r libs ${APP_DIR}/src/ckanext-potree/ckanext/potree/public/potree/
 # Start the development server with automatic reload
 sudo -u ckan -EH ckan -c $CKAN_INI run -H 0.0.0.0

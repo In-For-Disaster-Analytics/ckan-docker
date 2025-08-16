@@ -29,8 +29,9 @@ RUN pip3 install "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-s
 RUN pip3 install ckanext-pdfview
 COPY docker-entrypoint.d/* /docker-entrypoint.d/
 COPY patches ${APP_DIR}/patches
-COPY --from=potree-assets /tmp/potree/ /srv/app/src/ckanext-potree/ckanext/potree/public/potree/
-COPY --from=potree-assets /tmp/libs/ /srv/app/src/ckanext-potree/ckanext/potree/public/potree/libs
+RUN mkdir -p /srv/potree-assets/potree
+COPY --from=potree-assets /tmp/potree/ /srv/potree-assets/potree
+COPY --from=potree-assets /tmp/libs/ /srv/potree-assets/potree/libs/
 
 RUN for d in $APP_DIR/patches/*; do \
     if [ -d $d ]; then \

@@ -94,9 +94,9 @@ fi
 # Copy the potree assets to the appropriate directory
 wget https://github.com/mosoriob/potree/releases/download/test-v0.0.4/potree-dist.tar.gz && \
     tar -xzf potree-dist.tar.gz
-mkdir ${APP_DIR}/src_extensions/ckanext-potree/ckanext/potree/public/potree/build
-cp -r potree ${APP_DIR}/src_extensions/ckanext-potree/ckanext/potree/public/potree/build
-cp -r libs ${APP_DIR}/src_extensions/ckanext-potree/ckanext/potree/public/potree/
+mkdir        ${APP_DIR}/src_extensions/ckanext-potree/ckanext/potree/public/potree/build
+cp -r potree ${APP_DIR}/src_extensions/ckanext-potree/ckanext/potree/public/potree/build/potree
+cp -r libs   ${APP_DIR}/src_extensions/ckanext-potree/ckanext/potree/public/potree
 
 # Start supervisord
 supervisord --configuration /etc/supervisord.conf &

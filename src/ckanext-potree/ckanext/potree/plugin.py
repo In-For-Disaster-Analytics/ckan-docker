@@ -73,6 +73,26 @@ class PotreePlugin(plugins.SingletonPlugin):
         """Auto-detect and set format for Potree files before resource update."""
         return self._auto_detect_potree_format(resource)
 
+    def before_show(self, resource_dict):
+        """Called before a resource is shown. No modifications needed for Potree resources."""
+        return resource_dict
+
+    def after_create(self, context, resource):
+        """Called after a resource is created. No additional actions needed."""
+        return resource
+
+    def after_update(self, context, resource):
+        """Called after a resource is updated. No additional actions needed.""" 
+        return resource
+
+    def after_delete(self, context, resources):
+        """Called after resource(s) are deleted. No additional actions needed."""
+        return resources
+
+    def before_delete(self, context, resource, resources):
+        """Called before resource(s) are deleted. No additional actions needed."""
+        return resources
+
     def _auto_detect_potree_format(self, resource):
         """
         Automatically detect and set format for Potree scene files.

@@ -8,6 +8,7 @@ class PotreePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IBlueprint)
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IResourceView)
+    plugins.implements(plugins.IResourceController)
 
     # IConfigurer
     def update_config(self, config_):
@@ -60,34 +61,44 @@ class PotreePlugin(plugins.SingletonPlugin):
         }
 
     def _is_potree_scene_file(self, resource):
+        """Check if a resource is a Potree scene file using shared detection logic."""
+        return helpers._detect_potree_resource(resource)
+
+    # IResourceController
+    def before_create(self, context, resource):
+        """Auto-detect and set format for Potree files before resource creation."""
+        return self._auto_detect_potree_format(resource)
+
+    def before_update(self, context, current, resource):
+        """Auto-detect and set format for Potree files before resource update."""
+        return self._auto_detect_potree_format(resource)
+
+    def _auto_detect_potree_format(self, resource):
         """
-        Check if a resource is a Potree scene file based on multiple criteria.
+        Automatically detect and set format for Potree scene files.
         
-        This method checks:
-        1. File extension (.json5)
-        2. Format field (potree-scene, potree, json5)
-        3. Filename patterns (scene.json5, potree.json5)
+        This method is called before resource creation/update to ensure
+        that .json5 files and other Potree-related files get the correct format.
         """
         if not resource:
-            return False
+            return resource
 
-        # Check format field
-        format_name = resource.get('format', '').lower()
-        if format_name in ['potree-scene', 'potree', 'json5']:
-            return True
+        current_format = resource.get('format', '').lower()
 
-        # Check file extension from URL
-        url = resource.get('url', '').lower()
-        if url.endswith('.json5'):
-            return True
+        # Only auto-detect if format is not already set to a Potree-specific format
+        if current_format not in ['potree-scene', 'potree', 'json5', 'potree-workspace']:
+            
+            # Use our shared detection logic to check if this is a Potree resource
+            if helpers._detect_potree_resource(resource):
+                url = resource.get('url', '').lower()
+                name = resource.get('name', '').lower()
+                
+                # Set appropriate format based on file characteristics
+                if url.endswith('.json5') or name.endswith('.json5'):
+                    resource['format'] = 'json5'
+                elif any(keyword in name for keyword in ['scene', 'potree', 'workspace']):
+                    resource['format'] = 'potree-scene'
+                else:
+                    resource['format'] = 'potree'
 
-        # Check filename patterns
-        name = resource.get('name', '').lower()
-        if any(pattern in name for pattern in ['scene.json5', 'potree.json5', 'workspace.json5']):
-            return True
-
-        # Check if it's a JSON file with Potree-related name
-        if name.endswith('.json') and any(keyword in name for keyword in ['scene', 'potree', 'workspace']):
-            return True
-
-        return False
+        return resource

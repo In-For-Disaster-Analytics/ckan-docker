@@ -22,6 +22,11 @@ class TestPotreePlugin:
         assert hasattr(p, 'update_config')
         assert hasattr(p, 'get_blueprint')
         assert hasattr(p, 'get_helpers')
+        # IResourceView interface
+        assert hasattr(p, 'info')
+        assert hasattr(p, 'can_view')
+        assert hasattr(p, 'view_template')
+        assert hasattr(p, 'setup_template_variables')
     
     def test_get_helpers_returns_expected_functions(self):
         """Test that get_helpers returns the expected helper functions."""
@@ -32,6 +37,70 @@ class TestPotreePlugin:
         assert 'can_view_potree' in helper_functions
         assert helper_functions['is_potree_resource'] == helpers.is_potree_resource
         assert helper_functions['can_view_potree'] == helpers.can_view_potree
+
+    def test_resource_view_info(self):
+        """Test the resource view info method."""
+        p = plugin.PotreePlugin()
+        info = p.info()
+        
+        assert info['name'] == 'potree_scene'
+        assert info['title'] == 'Potree 3D Scene'
+        assert info['icon'] == 'cube'
+        assert info['iframed'] is False
+        assert 'default_title' in info
+
+    def test_can_view_potree_scene_files(self):
+        """Test that can_view returns True for Potree scene files."""
+        p = plugin.PotreePlugin()
+        
+        # Test JSON5 format
+        data_dict = {'resource': {'format': 'json5', 'name': 'scene.json5'}}
+        assert p.can_view(data_dict) is True
+        
+        # Test potree-scene format
+        data_dict = {'resource': {'format': 'potree-scene'}}
+        assert p.can_view(data_dict) is True
+        
+        # Test URL ending with .json5
+        data_dict = {'resource': {'url': 'http://example.com/scene.json5'}}
+        assert p.can_view(data_dict) is True
+
+    def test_can_view_non_potree_files(self):
+        """Test that can_view returns False for non-Potree files."""
+        p = plugin.PotreePlugin()
+        
+        # Test CSV file
+        data_dict = {'resource': {'format': 'csv', 'name': 'data.csv'}}
+        assert p.can_view(data_dict) is False
+        
+        # Test empty resource
+        data_dict = {'resource': {}}
+        assert p.can_view(data_dict) is False
+
+    def test_view_template_returns_correct_template(self):
+        """Test that view_template returns the correct template path."""
+        p = plugin.PotreePlugin()
+        context = {}
+        data_dict = {'resource': {'id': 'test-id'}}
+        
+        template = p.view_template(context, data_dict)
+        assert template == 'potree/index.html'
+
+    def test_setup_template_variables(self):
+        """Test that setup_template_variables returns expected variables."""
+        p = plugin.PotreePlugin()
+        context = {}
+        resource = {'id': 'test-id', 'url': 'http://example.com/scene.json5'}
+        data_dict = {'resource': resource}
+        
+        variables = p.setup_template_variables(context, data_dict)
+        
+        assert 'resource' in variables
+        assert 'resource_view' in variables
+        assert 'resource_url' in variables
+        assert 'viewer_url' in variables
+        assert variables['resource'] == resource
+        assert variables['resource_url'] == 'http://example.com/scene.json5'
 
 
 class TestPotreeHelpers:
@@ -47,10 +116,34 @@ class TestPotreeHelpers:
         
         resource = {'format': 'potree'}
         assert helpers.is_potree_resource(resource) is True
+        
+        resource = {'format': 'json5'}
+        assert helpers.is_potree_resource(resource) is True
     
-    def test_is_potree_resource_with_json_extension(self):
-        """Test resource detection with JSON file extension."""
-        resource = {'name': 'scene.json', 'format': 'json'}
+    def test_is_potree_resource_with_json5_extension(self):
+        """Test resource detection with JSON5 file extension."""
+        resource = {'url': 'http://example.com/scene.json5'}
+        assert helpers.is_potree_resource(resource) is True
+        
+        resource = {'name': 'scene.json5'}
+        assert helpers.is_potree_resource(resource) is True
+
+    def test_is_potree_resource_with_filename_patterns(self):
+        """Test resource detection with specific filename patterns."""
+        resource = {'name': 'scene.json5'}
+        assert helpers.is_potree_resource(resource) is True
+        
+        resource = {'name': 'potree.json5'}
+        assert helpers.is_potree_resource(resource) is True
+        
+        resource = {'name': 'workspace.json5'}
+        assert helpers.is_potree_resource(resource) is True
+        
+        # Test JSON files with keywords
+        resource = {'name': 'my-scene.json'}
+        assert helpers.is_potree_resource(resource) is True
+        
+        resource = {'name': 'potree-config.json'}
         assert helpers.is_potree_resource(resource) is True
     
     def test_is_potree_resource_negative_cases(self):
@@ -62,6 +155,9 @@ class TestPotreeHelpers:
         assert helpers.is_potree_resource(resource) is False
         
         resource = {'name': 'data.csv', 'format': 'csv'}
+        assert helpers.is_potree_resource(resource) is False
+        
+        resource = {'name': 'regular.json', 'format': 'json'}
         assert helpers.is_potree_resource(resource) is False
     
     @patch('ckan.plugins.toolkit.check_access')

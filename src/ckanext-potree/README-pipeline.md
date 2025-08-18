@@ -4,6 +4,25 @@
 
 This streamlined LiDAR processing pipeline transforms raw point cloud data into web-accessible visualizations through five key phases. The pipeline emphasizes automated processing, direct web accessibility, and efficient resource management within existing infrastructure.
 
+## What is Potree?
+
+Potree is an open-source WebGL-based point cloud renderer for large datasets, originally developed by Markus Schütz. It enables interactive visualization of massive LiDAR point clouds directly in web browsers without requiring specialized software installation.
+
+### Key Technical Features
+
+- **Octree-based LOD**: Hierarchical Level-of-Detail system for efficient rendering of billion+ point datasets
+- **WebGL Rendering**: GPU-accelerated visualization with adaptive point sizing and materials
+- **Streaming Architecture**: Progressive loading of point data based on viewer position and zoom level
+- **Format Support**: Optimized binary formats (.bin) with spatial indexing for web delivery
+- **Cross-Platform**: Works on any device with WebGL support (desktop, mobile, tablets)
+
+### Potree vs. Traditional Point Cloud Software
+
+- **No Installation**: Browser-based access eliminates desktop software requirements
+- **Collaborative**: Shareable URLs enable team collaboration and public access
+- **Scalable**: Handles datasets from millions to billions of points efficiently
+- **Interactive**: Real-time navigation, measurement tools, and classification filtering
+
 ---
 
 ## Phase 1: Processing Submission & Conversion
@@ -127,11 +146,11 @@ Potree Converter → Process point cloud data through multiple steps:
 sequenceDiagram
     participant User as 👤 User/Researcher
     participant CKAN as 📚 CKAN Portal
-    participant Django as 🌐 Potree Viewer App
+    participant PotreePlugin as 🌐 Potree CKAN-Plugin
 
     %% CKAN Registration Phase
     rect rgb(230, 245, 255)
-        Note over User,Django: Phase 2: CKAN Registration & Cataloging
+        Note over User,PotreePlugin: Phase 2: CKAN Registration & Cataloging
         User->>CKAN: Register and upload scene.json5 resource
         Note right of User: Upload configuration:<br/>- scene.json5 file<br/>- Local file or remote URL
 
@@ -142,11 +161,11 @@ sequenceDiagram
         Note right of CKAN: URL format:<br/>https://target-server/dataset/potree/<CKAN_RESOURCE_ID>
 
         User->>CKAN: Access integrated viewer link
-        CKAN->>Django: Redirect to viewer with resource_id
-        Django->>CKAN: Fetch scene.json5 via CKAN API
-        CKAN-->>Django: Return scene configuration data
-        Django->>Django: Parse JSON5 and validate permissions
-        Django-->>User: Serve Potree viewer with scene data
+        CKAN->>PotreePlugin: Redirect to viewer with resource_id
+        PotreePlugin->>CKAN: Fetch scene.json5 via CKAN API
+        CKAN-->>PotreePlugin: Return scene configuration data
+        PotreePlugin->>PotreePlugin: Parse JSON5 and validate permissions
+        PotreePlugin-->>User: Serve Potree viewer with scene data
     end
 
 ```
@@ -169,10 +188,10 @@ sequenceDiagram
 
 #### Integrated Viewer Architecture
 
-**Django-CKAN Integration**:
+**PotreePlugin-CKAN Integration**:
 
 - **Resource ID Parameter**: Viewer URLs include CKAN resource ID for direct access
-- **API Integration**: Django app fetches scene data directly from CKAN API
+- **API Integration**: PotreePlugin app fetches scene data directly from CKAN API
 - **Permission Validation**: Ensures user has appropriate access to view/edit resources
 - **Bidirectional Sync**: Changes in viewer can be saved back to CKAN resource
 
@@ -188,7 +207,7 @@ http://ckan.tacc.cloud:5000/dataset/potree/60f27f0c-1d75-4578-a622-25d6dea44073
 
 1. CKAN stores scene.json5 as resource
 2. User clicks viewer link from CKAN
-3. Django app fetches scene data from CKAN API
+3. PotreePlugin app fetches scene data from CKAN API
 4. Potree viewer loads with configuration
 5. User modifications saved back to CKAN resource
 
@@ -211,7 +230,7 @@ http://ckan.tacc.cloud:5000/dataset/potree/60f27f0c-1d75-4578-a622-25d6dea44073
 sequenceDiagram
     participant User as 👤 User/Researcher
     participant CKAN as 📚 CKAN Portal
-    participant Django as 🌐 Potree Viewer App
+    participant PotreePlugin as 🌐 Potree CKAN-Plugin
     participant Corral as 💾 Corral Storage
 
     %% Discovery & Access Phase
@@ -226,20 +245,20 @@ sequenceDiagram
         User->>CKAN: Select scene.json5 resource
         Note right of User: One-click access from<br/>CKAN resource page
 
-        User->>Django: Click "View in Potree" button
-        Note right of User: URL: /potree/?resource_id=<ID>
+        User->>PotreePlugin: Click "View in Potree" button
+        Note right of User: URL: /dataset/potree/<ID>
 
-        Django->>CKAN: Fetch scene.json5 via API
-        CKAN-->>Django: Return scene configuration
+        PotreePlugin->>CKAN: Fetch scene.json5 via API
+        CKAN-->>PotreePlugin: Return scene configuration
 
-        Django->>Django: Parse JSON5 and validate access
-        Note right of Django: Security checks:<br/>- User permissions<br/>- Resource access<br/>- Path validation
+        PotreePlugin->>PotreePlugin: Parse JSON5 and validate access
+        Note right of PotreePlugin: Security checks:<br/>- User permissions<br/>- Resource access<br/>- Path validation
 
-        Django->>Corral: Load point cloud data
-        Note right of Django: Based on scene config:<br/>- Local files or URLs<br/>- Direct web-accessible paths
+        PotreePlugin->>Corral: Load point cloud data
+        Note right of PotreePlugin: Based on scene config:<br/>- Local files or URLs<br/>- Direct web-accessible paths
 
-        Django-->>User: Serve integrated Potree viewer
-        Note left of Django: Complete viewer with:<br/>- Scene configuration<br/>- Point cloud data<br/>- Interactive tools
+        PotreePlugin-->>User: Serve integrated Potree viewer
+        Note left of PotreePlugin: Complete viewer with:<br/>- Scene configuration<br/>- Point cloud data<br/>- Interactive tools
     end
 ```
 
@@ -297,7 +316,7 @@ sequenceDiagram
 sequenceDiagram
     participant User as 👤 User/Researcher
     participant Browser as 🌍 Browser/Client
-    participant Django as 🌐 Potree Viewer App
+    participant PotreePlugin as 🌐 Potree CKAN-Plugin
     participant CKAN as 📚 CKAN Portal
     participant Corral as 💾 Corral Storage
 
@@ -305,27 +324,33 @@ sequenceDiagram
     rect rgb(230, 245, 255)
         Note over User,Corral: Phase 4: Integrated Visualization
         User->>Browser: Access viewer via CKAN
-        Browser->>Django: Load Potree viewer application
-        Django-->>Browser: Return viewer with scene data
+        Browser->>PotreePlugin: Load Potree CKAN-Pluginlication
 
-        Browser->>Django: Initialize with CKAN resource
-        Note right of Browser: Scene configuration<br/>loaded from CKAN API
+        PotreePlugin->>CKAN: Fetch scene.json5 via API
+        Note right of PotreePlugin: Resource ID from URL<br/>parameters
+        CKAN-->>PotreePlugin: Return scene configuration
 
-        Browser->>Django: Request point cloud data
-        Django->>Corral: Fetch octree tiles
-        Note right of Django: Based on scene.json5<br/>configuration paths
+        PotreePlugin->>PotreePlugin: Parse configuration and validate permissions
+        Note right of PotreePlugin: Security checks:<br/>- User permissions<br/>- Resource access<br/>- Path validation
 
-        Corral-->>Django: Return octree tiles
-        Django-->>Browser: Stream point cloud data
-        Browser->>Browser: Render 3D visualization
+        PotreePlugin-->>Browser: Serve Potree viewer to browser
+        Note left of PotreePlugin: Complete viewer with<br/>scene configuration
 
-        Note over Browser: Enhanced features:<br/>- 3D navigation & analysis<br/>- CKAN-integrated saves<br/>- Collaborative sharing<br/>- Bidirectional sync
+        Browser->>Corral: Request point cloud data and octree tiles
+        Note right of Browser: Direct requests based on<br/>scene config paths
+        Corral-->>Browser: Return octree tiles
+
+        Browser->>Browser: Adaptive loading based on user navigation
+        Note right of Browser: LOD system loads data<br/>as needed for viewport
+
+        Browser->>Browser: Real-time 3D rendering with WebGL acceleration
+        Note over Browser: Enhanced features:<br/>- GPU-accelerated rendering<br/>- Interactive navigation<br/>- Measurement tools<br/>- Classification filtering
 
         User->>Browser: Make annotations/measurements
-        Browser->>Django: Save modifications
-        Django->>CKAN: Update scene.json5 resource
-        CKAN-->>Django: Confirm save
-        Django-->>Browser: Confirm changes saved
+        Browser->>PotreePlugin: Save modifications
+        PotreePlugin->>CKAN: Update scene.json5 resource
+        CKAN-->>PotreePlugin: Confirm save
+        PotreePlugin-->>Browser: Confirm changes saved
     end
 ```
 
@@ -333,7 +358,7 @@ sequenceDiagram
 
 #### Integrated Viewer Loading
 
-- **Django Application**: Serves complete Potree viewer with CKAN integration
+- **PotreePlugin Application**: Serves complete Potree viewer with CKAN integration
 - **Resource-Based Configuration**: Scene settings automatically loaded from CKAN resource
 - **Authentication Continuity**: User sessions maintained across CKAN and viewer
 - **Dynamic Configuration**: Real-time scene data fetching via CKAN API
@@ -341,9 +366,9 @@ sequenceDiagram
 #### Enhanced Data Streaming & Rendering
 
 ```
-Django App → Fetch scene.json5 from CKAN API
-Django App → Parse configuration and validate permissions
-Django App → Serve Potree viewer to browser
+PotreePlugin App → Fetch scene.json5 from CKAN API
+PotreePlugin App → Parse configuration and validate permissions
+PotreePlugin App → Serve Potree viewer to browser
 Browser → Request point cloud data and octree tiles from Corral storage
 Browser → Adaptive loading based on user navigation
 Browser → Real-time 3D rendering with WebGL acceleration
@@ -394,7 +419,7 @@ sequenceDiagram
     participant UserA as 👤 Researcher A
     participant UserB as 👤 Researcher B
     participant Browser as 🌍 Browser/Client
-    participant Django as 🌐 Potree Viewer App
+    participant PotreePlugin as 🌐 Potree CKAN-Plugin
     participant CKAN as 📚 CKAN Portal
 
     %% Collaboration & Sharing
@@ -402,8 +427,8 @@ sequenceDiagram
         Note over UserA,CKAN: Phase 5: Advanced Collaboration & Knowledge Sharing
 
         UserA->>Browser: Create annotations/measurements
-        Browser->>Django: Save modifications
-        Django->>CKAN: Update scene.json5 resource
+        Browser->>PotreePlugin: Save modifications
+        PotreePlugin->>CKAN: Update scene.json5 resource
         Note right of CKAN: Real-time saves:<br/>- Annotations<br/>- Measurements<br/>- View configurations<br/>- Analysis notes
 
         UserA->>CKAN: Share resource with UserB
@@ -411,14 +436,14 @@ sequenceDiagram
 
         CKAN->>UserB: Notify of shared resource
         UserB->>CKAN: Access shared resource
-        UserB->>Django: Open in Potree viewer
-        Django->>CKAN: Load latest scene configuration
-        CKAN-->>Django: Return updated scene data
-        Django-->>UserB: Display collaborative workspace
+        UserB->>PotreePlugin: Open in Potree viewer
+        PotreePlugin->>CKAN: Load latest scene configuration
+        CKAN-->>PotreePlugin: Return updated scene data
+        PotreePlugin-->>UserB: Display collaborative workspace
 
         UserB->>Browser: Add additional analysis
-        Browser->>Django: Save collaborative changes
-        Django->>CKAN: Update shared resource
+        Browser->>PotreePlugin: Save collaborative changes
+        PotreePlugin->>CKAN: Update shared resource
         Note right of CKAN: Version tracking:<br/>- Change history<br/>- Contributor tracking<br/>- Conflict resolution
 
         UserA->>CKAN: Review collaborative updates

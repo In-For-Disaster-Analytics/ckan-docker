@@ -15,7 +15,7 @@
 
 {% set url_action = pkg.type ~ ('_resource.edit' if url_is_edit and can_edit else '_resource.read') %}
 {% set url = h.url_for(url_action, id=pkg.id if is_activity_archive else pkg.name, resource_id=res.id, **({'activity_id': request.args['activity_id']} if 'activity_id' in request.args else {})) %}
-{% set token = h.oauth2_get_stored_token() %}
+{% set token = h.safe_oauth2_get_stored_token() %}
 {% set token_access_token = token.access_token if token else None %}
 
 

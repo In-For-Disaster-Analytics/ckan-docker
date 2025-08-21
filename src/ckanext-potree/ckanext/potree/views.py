@@ -21,7 +21,8 @@ def get_blueprints():
             resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
 
             # Check user permissions
-            toolkit.check_access('resource_show', {}, {'id': resource_id})
+            context = {'user': toolkit.c.user}
+            toolkit.check_access('resource_show', context, {'id': resource_id})
 
             # Validate it's a Potree scene file
             if not _is_potree_scene_resource(resource):
@@ -69,7 +70,8 @@ def get_blueprints():
             resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
 
             # Check user permissions - require edit access
-            toolkit.check_access('resource_update', {}, {'id': resource_id})
+            context = {'user': toolkit.c.user}
+            toolkit.check_access('resource_update', context, {'id': resource_id})
 
             # Validate it's a Potree scene file
             if not _is_potree_scene_resource(resource):
@@ -134,7 +136,8 @@ def get_blueprints():
             resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
 
             # Check user permissions - require edit access
-            toolkit.check_access('resource_update', {}, {'id': resource_id})
+            auth_context = {'user': toolkit.c.user}
+            toolkit.check_access('resource_update', auth_context, {'id': resource_id})
 
             # Validate it's a Potree scene file
             if not _is_potree_scene_resource(resource):

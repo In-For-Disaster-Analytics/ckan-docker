@@ -47,7 +47,45 @@ To temporary patch the CKAN configuration for the duration of a test you can use
     def test_some_action():
         pass
 """
+import pytest
+from unittest.mock import patch, Mock
 import ckanext.tacc_theme.plugin as plugin
+
 
 def test_plugin():
     pass
+
+
+class TestTaccThemePlugin:
+    """Test class for TaccThemePlugin"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.plugin = plugin.TaccThemePlugin()
+
+    def test_safe_oauth2_get_stored_token_when_oauth2_available(self):
+        """Test safe_oauth2_get_stored_token when OAuth2 helper is available"""
+        mock_token = Mock()
+        mock_token.access_token = "test_token_123"
+        
+        with patch('ckan.plugins.toolkit.h.oauth2_get_stored_token', return_value=mock_token):
+            result = self.plugin.safe_oauth2_get_stored_token()
+            assert result == mock_token
+
+    def test_safe_oauth2_get_stored_token_when_oauth2_unavailable(self):
+        """Test safe_oauth2_get_stored_token when OAuth2 helper is not available (AttributeError)"""
+        with patch('ckan.plugins.toolkit.h', spec=[]):  # h object without oauth2_get_stored_token attribute
+            result = self.plugin.safe_oauth2_get_stored_token()
+            assert result is None
+
+    def test_safe_oauth2_get_stored_token_when_oauth2_raises_exception(self):
+        """Test safe_oauth2_get_stored_token when OAuth2 helper raises an exception"""
+        with patch('ckan.plugins.toolkit.h.oauth2_get_stored_token', side_effect=Exception("OAuth2 error")):
+            result = self.plugin.safe_oauth2_get_stored_token()
+            assert result is None
+
+    def test_get_helpers_includes_safe_oauth2_helper(self):
+        """Test that get_helpers includes the safe_oauth2_get_stored_token helper"""
+        helpers = self.plugin.get_helpers()
+        assert 'safe_oauth2_get_stored_token' in helpers
+        assert helpers['safe_oauth2_get_stored_token'] == self.plugin.safe_oauth2_get_stored_token

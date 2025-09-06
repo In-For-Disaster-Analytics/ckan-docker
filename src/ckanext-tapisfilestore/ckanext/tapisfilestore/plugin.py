@@ -216,7 +216,7 @@ class TapisFilestorePlugin(plugins.SingletonPlugin):
 
 
     # IResourceController
-    def before_show(self, resource_dict):
+    def before_resource_show(self, resource_dict):
         """
         Modify resource URLs for tapis:// files before showing them
         """
@@ -238,7 +238,7 @@ class TapisFilestorePlugin(plugins.SingletonPlugin):
 
         return resource_dict
 
-    def after_create(self, context, resource):
+    def after_resource_create(self, context, resource):
         """Handle resource creation - for tapis files, just validate the URL format"""
         url = resource.get('url', '')
         if url.startswith('tapis://'):
@@ -247,9 +247,9 @@ class TapisFilestorePlugin(plugins.SingletonPlugin):
                 raise toolkit.ValidationError({'url': ['Invalid tapis:// URL format']})
         return resource
 
-    def after_update(self, context, resource):
+    def after_resource_update(self, context, resource):
         """Handle resource updates - similar validation as create"""
-        return self.after_create(context, resource)
+        return self.after_resource_create(context, resource)
 
 
 def is_tapis_url(url):

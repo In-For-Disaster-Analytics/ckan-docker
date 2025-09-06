@@ -52,7 +52,7 @@ class PotreePlugin(plugins.SingletonPlugin):
         """Setup variables available to the template."""
         resource = data_dict['resource']
         resource_view = data_dict.get('resource_view', {})
-        
+
         return {
             'resource': resource,
             'resource_view': resource_view,
@@ -65,38 +65,38 @@ class PotreePlugin(plugins.SingletonPlugin):
         return helpers._detect_potree_resource(resource)
 
     # IResourceController
-    def before_create(self, context, resource):
+    def before_resource_create(self, context, resource):
         """Auto-detect and set format for Potree files before resource creation."""
         return self._auto_detect_potree_format(resource)
 
-    def before_update(self, context, current, resource):
+    def before_resource_update(self, context, current, resource):
         """Auto-detect and set format for Potree files before resource update."""
         return self._auto_detect_potree_format(resource)
 
-    def before_show(self, resource_dict):
+    def before_resource_show(self, resource_dict):
         """Called before a resource is shown. No modifications needed for Potree resources."""
         return resource_dict
 
-    def after_create(self, context, resource):
+    def after_resource_create(self, context, resource):
         """Called after a resource is created. No additional actions needed."""
         return resource
 
-    def after_update(self, context, resource):
-        """Called after a resource is updated. No additional actions needed.""" 
+    def after_resource_update(self, context, resource):
+        """Called after a resource is updated. No additional actions needed."""
         return resource
 
-    def after_delete(self, context, resources):
+    def after_resource_delete(self, context, resources):
         """Called after resource(s) are deleted. No additional actions needed."""
         return resources
 
-    def before_delete(self, context, resource, resources):
+    def before_resource_delete(self, context, resource, resources):
         """Called before resource(s) are deleted. No additional actions needed."""
         return resources
 
     def _auto_detect_potree_format(self, resource):
         """
         Automatically detect and set format for Potree scene files.
-        
+
         This method is called before resource creation/update to ensure
         that .json5 files and other Potree-related files get the correct format.
         """
@@ -107,12 +107,12 @@ class PotreePlugin(plugins.SingletonPlugin):
 
         # Only auto-detect if format is not already set to a Potree-specific format
         if current_format not in ['potree-scene', 'potree', 'json5', 'potree-workspace']:
-            
+
             # Use our shared detection logic to check if this is a Potree resource
             if helpers._detect_potree_resource(resource):
                 url = resource.get('url', '').lower()
                 name = resource.get('name', '').lower()
-                
+
                 # Set appropriate format based on file characteristics
                 if url.endswith('.json5') or name.endswith('.json5'):
                     resource['format'] = 'json5'

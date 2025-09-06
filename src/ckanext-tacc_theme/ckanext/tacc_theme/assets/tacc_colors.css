@@ -33,22 +33,53 @@
   --danger-bg: #f2dede;
 }
 
-/* Apply background color */
+/* Apply background color with higher specificity */
 body {
-  background-color: var(--background-color);
-  color: var(--text-color);
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
 }
 
 /* Input border color */
-input {
-  border-color: var(--primary);
+input[type="text"], input[type="email"], input[type="password"], input[type="search"], 
+input[type="url"], input[type="number"], textarea, select {
+  border-color: var(--primary) !important;
 }
 
 /* Text color classes */
 .text-muted {
-  color: var(--text-muted);
+  color: var(--text-muted) !important;
 }
 
 mark, .mark {
-  background-color: var(--warning-bg);
+  background-color: var(--warning-bg) !important;
+}
+
+/* Primary button colors */
+.btn-primary {
+  background-color: var(--primary) !important;
+  border-color: var(--primary-dark) !important;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--primary-dark) !important;
+  border-color: var(--primary-darker) !important;
+}
+
+/* Link colors */
+a {
+  color: var(--primary) !important;
+}
+
+a:hover, a:focus {
+  color: var(--primary-dark) !important;
+}
+
+/* Navbar/header colors */
+.masthead {
+  background-color: var(--primary-dark) !important;
+}
+
+/* Container background */
+.container, .container-fluid {
+  background-color: var(--white) !important;
 }

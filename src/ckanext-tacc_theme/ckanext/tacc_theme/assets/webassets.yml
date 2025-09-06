@@ -9,6 +9,6 @@
 
 styles:
   filter: cssrewrite
-  output: ckanext-tacc_theme/%(version)s-tacc_theme.css
+  output: ckanext-tacc_theme/%(version)s-tacc_colors.css
   contents:
-    - tacc_theme.css
+    - tacc_colors.css

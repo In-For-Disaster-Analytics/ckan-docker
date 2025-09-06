@@ -1,0 +1,54 @@
+/* TACC Theme Color Customizations */
+:root {
+  /* Primary colors */
+  --primary-lightest: #6039cc40;
+  --primary: #784fe8;
+  --primary-dark: #6039cc;
+  --primary-darker: #3d189b;
+
+  /* Background colors */
+  --background-color: #F4F4F4;
+  
+  /* Text colors */
+  --text-color: #333333;
+  --text-muted: #555555;
+  --text-light: #777777;
+
+  /* UI colors */
+  --white: #fff;
+  --black: #000;
+  --gray-lighter: #eeeeee;
+  --gray-light: #f5f5f5;
+  --border-color: #cccccc;
+  --border-color-dark: #dddddd;
+
+  /* State colors */
+  --success: #3c763d;
+  --success-bg: #dff0d8;
+  --info: #31708f;
+  --info-bg: #d9edf7;
+  --warning: #8a6d3b;
+  --warning-bg: #fcf8e3;
+  --danger: #a94442;
+  --danger-bg: #f2dede;
+}
+
+/* Apply background color */
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+/* Input border color */
+input {
+  border-color: var(--primary);
+}
+
+/* Text color classes */
+.text-muted {
+  color: var(--text-muted);
+}
+
+mark, .mark {
+  background-color: var(--warning-bg);
+}

@@ -88,15 +88,6 @@
    The content in the middle of the front page
    =========================================== */
 
-/* Remove the "box shadow" effect around various boxes on the page. */
-.box {
-  box-shadow: none;
-}
-/* Remove the borders around the "Welcome to CKAN" and "Search Your Data"
-   boxes. */
-.hero .box {
-  border: none;
-}
 /* Change the colors of the "Search Your Data" box. */
 .homepage .module-search .module-content {
   color: rgb(68, 68, 68);
@@ -105,14 +96,6 @@
 /* Change the background color of the "Popular Tags" box. */
 .homepage .module-search .tags {
   background-color: rgb(61, 61, 61);
-}
-/* Remove some padding. This makes the bottom edges of the "Welcome to CKAN"
-   and "Search Your Data" boxes line up. */
-.module-content:last-child {
-  padding-bottom: 0px;
-}
-.homepage .module-search {
-  padding: 0px;
 }
 /* Add a border line between the top and bottom halves of the front page. */
 .homepage [role='main'] {

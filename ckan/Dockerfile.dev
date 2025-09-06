@@ -1,4 +1,4 @@
-FROM ckan/ckan-dev:2.9-py3.9
+FROM ckan/ckan-dev:2.11-py3.9
 # Install any extensions needed by your CKAN instance
 # See Dockerfile.dev for more details and examples
 

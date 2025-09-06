@@ -2,9 +2,9 @@ volumes:
   ckan_storage_dev:
   pg_data_dev:
   solr_data_dev:
-  pip_cache_dev:
-  site_packages_dev:
-  local_bin_dev:
+  pip_cache_dev_py310:
+  site_packages_dev_py310:
+  local_bin_dev_py310:
   home_dir_dev:
 
 services:
@@ -41,9 +41,9 @@ services:
     volumes:
       - ckan_storage_dev:/var/lib/ckan
       - ./src:/srv/app/src_extensions
-      - pip_cache_dev:/root/.cache/pip
-      - site_packages_dev:/usr/local/lib/python3.10/site-packages
-      - local_bin_dev:/usr/local/bin
+      - pip_cache_dev_py310:/root/.cache/pip
+      - site_packages_dev_py310:/usr/local/lib/python3.10/site-packages
+      - local_bin_dev_py310:/usr/local/bin
       - home_dir_dev:/srv/app/
     restart: unless-stopped
     healthcheck:

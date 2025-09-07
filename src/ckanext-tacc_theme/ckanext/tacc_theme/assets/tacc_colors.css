@@ -65,12 +65,6 @@ legend {
   border: 0;
 }
 
-*,
-  *:before,
-  *:after {
-  color: #000 !important;
-}
-
 pre,
   blockquote {
   border: 1px solid #999;

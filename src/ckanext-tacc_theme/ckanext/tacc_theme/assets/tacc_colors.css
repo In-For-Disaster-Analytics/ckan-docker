@@ -60,7 +60,6 @@ textarea {
   *:before,
   *:after {
   color: #000 !important;
-  background: transparent !important;
 }
 
 .btn > .caret,

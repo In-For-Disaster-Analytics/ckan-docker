@@ -59,7 +59,7 @@ textarea {
 *,
   *:before,
   *:after {
-  color: #000 !important;
+  color: #000;
 }
 
 .btn > .caret,

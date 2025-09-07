@@ -59,13 +59,12 @@ textarea {
 *,
   *:before,
   *:after {
-  color: #000 !important;
-  background: transparent !important;
+  color: var(--white)!important;
 }
 
 .btn > .caret,
   .dropup > .btn > .caret {
-  border-top-color: #000 !important;
+  border-top-color: var(--white)!important;
 }
 
 .table td,

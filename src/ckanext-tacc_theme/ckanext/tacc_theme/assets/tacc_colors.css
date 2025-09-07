@@ -3534,11 +3534,6 @@ table.diff {
   color: #444;
 }
 
-.homepage .hero {
-  padding: 20px 0;
-  background: transparent;
-}
-
 .homepage .module-search {
   color: var(--white);
   background: var(--white);

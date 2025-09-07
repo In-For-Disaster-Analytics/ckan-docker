@@ -3401,14 +3401,6 @@ table.diff {
   color: #505050;
 }
 
-.toolbar .breadcrumb {
-  color: var(--white);
-}
-
-.toolbar .breadcrumb a {
-  color: var(--white);
-}
-
 .page-header {
   border-bottom: 1px solid var(--border-color-dark);
   background-color: #f6f6f6;

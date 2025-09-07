@@ -3625,6 +3625,7 @@ table.diff {
 .masthead .btn-navbar-btn.active,
 .masthead .btn-navbar-btn.disabled,
 .masthead .btn-navbar-btn[disabled] {
+  border-bottom: 2px solid #ffc107;
   background-color: #003647;
   background-image: none;
   border: none;

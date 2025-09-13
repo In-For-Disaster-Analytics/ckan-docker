@@ -1663,11 +1663,14 @@ a.label:focus {
   background-color: #c9302c;
 }
 
-.badge {
-  background-color: var(--background-color);
-  border: 1px solid var(--border-color-dark);
-  color: var(--text-color);
-  border-radius: 10px;
+.badge,
+.module-narrow .nav-item > a .badge,
+.dataset-heading .badge,
+.module-narrow .nav-aside li a .badge {
+  background-color: var(--background-color) !important;
+  border: 1px solid var(--border-color-dark) !important;
+  color: var(--text-color) !important;
+  border-radius: 10px !important;
 }
 
 a.badge:hover,
@@ -2469,13 +2472,13 @@ button.list-group-item-danger.active:focus {
 }
 
 .close {
-  color: var(--black)
+  color: var(--black);
   text-shadow: 0 1px 0 var(--white);
 }
 
 .close:hover,
 .close:focus {
-  color: var(--black)
+  color: var(--black);
   text-decoration: none;
 }
 
@@ -2546,7 +2549,7 @@ button.close {
 
 .tooltip-inner {
   color: var(--white);
-  background-color: var(--black)
+  background-color: var(--black);
   border-radius: 4px;
 }
 
@@ -2818,7 +2821,7 @@ a.tag:hover {
 }
 
 .media-overlay .media-heading {
-  background-color: var(--black)
+  background-color: var(--black);
   background-color: rgba(0, 0, 0, 0.8);
   color: var(--white);
   border-radius: 0 0 3px 3px;
@@ -3270,7 +3273,7 @@ fieldset[disabled] .control-custom.disabled .checkbox.btn.focus {
 }
 
 .view-list li a h3 {
-  color: var(--black)
+  color: var(--black);
   font-weight: bold;
 }
 

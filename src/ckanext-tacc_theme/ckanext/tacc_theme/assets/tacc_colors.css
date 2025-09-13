@@ -1228,13 +1228,13 @@ fieldset[disabled] .btn-link:focus {
   border-bottom-color: var(--white);
 }
 
-.nav-pills > li > a:hover {
+.navbar-nav > li > a:hover {
   border-bottom: 2px solid #ffc107;
 }
 
-.nav-pills > li.active > a,
-.nav-pills > li.active > a:hover,
-.nav-pills > li.active > a:focus {
+.navbar-nav > li.active > a,
+.navbar-nav > li.active > a:hover,
+.navbar-nav > li.active > a:focus {
   color: var(--white);
   border-bottom: 2px solid #ffc107;
 }
@@ -1686,7 +1686,7 @@ a.badge:focus {
 }
 
 .list-group-item.active > .badge,
-.nav-pills > .active > a > .badge {
+.navbar-nav > .active > a > .badge {
   color: #206b82;
   background-color: var(--white);
 }
@@ -3603,9 +3603,9 @@ table.diff {
   color: var(--white);
 }
 
-.masthead .navigation .nav-pills li a:hover,
-.masthead .navigation .nav-pills li a:focus,
-.masthead .navigation .nav-pills li.active a {
+.masthead .navigation .navbar-nav li a:hover,
+.masthead .navigation .navbar-nav li a:focus,
+.masthead .navigation .navbar-nav li.active a {
   background-color: #222222;
 }
 
@@ -3643,9 +3643,9 @@ table.diff {
   color: var(--white);
 }
 
-.site-footer .navigation .nav-pills li a:hover,
-.site-footer .navigation .nav-pills li a:focus,
-.site-footer .navigation .nav-pills li.active a {
+.site-footer .navigation .navbar-nav li a:hover,
+.site-footer .navigation .navbar-nav li a:focus,
+.site-footer .navigation .navbar-nav li.active a {
   background-color: #003647;
 }
 

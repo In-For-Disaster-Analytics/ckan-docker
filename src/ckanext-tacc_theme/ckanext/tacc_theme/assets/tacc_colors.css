@@ -3567,6 +3567,11 @@ table.diff {
   border-bottom: 1px solid var(--white);
 }
 
+
+.masthead .main-navbar ul li:hover a, .masthead .main-navbar ul li:focus a, .masthead .main-navbar ul li.active a {
+  background-color: transparent;
+}
+
 .account-masthead .account ul li {
   border-left: 1px solid #00232e;
 }

@@ -1229,6 +1229,7 @@ fieldset[disabled] .btn-link:focus {
 }
 
 .navbar-nav > li > a:hover {
+  background: none;
   border-bottom: 2px solid #ffc107;
 }
 
@@ -1236,6 +1237,7 @@ fieldset[disabled] .btn-link:focus {
 .navbar-nav > li.active > a:hover,
 .navbar-nav > li.active > a:focus {
   color: var(--white);
+  background: none;
   border-bottom: 2px solid #ffc107;
 }
 

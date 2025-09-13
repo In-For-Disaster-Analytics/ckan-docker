@@ -70,11 +70,6 @@ pre,
   border: 1px solid #999;
 }
 
-.btn > .caret,
-  .dropup > .btn > .caret {
-  border-top-color: #000 !important;
-}
-
 .label {
   border: 1px solid var(--black);
 }
@@ -1083,13 +1078,6 @@ fieldset[disabled] .btn-link:hover,
 .btn-link[disabled]:focus,
 fieldset[disabled] .btn-link:focus {
   color: var(--text-light);
-}
-
-.caret {
-  border-top: 4px dashed;
-  border-top: 4px solid \9;
-  border-right: 4px solid transparent;
-  border-left: 4px solid transparent;
 }
 
 .dropdown-menu {

@@ -1229,7 +1229,7 @@ fieldset[disabled] .btn-link:focus {
 }
 
 .navbar-nav > li > a:hover {
-  background: none;
+  background-color: black;
   border-bottom: 2px solid #ffc107;
 }
 
@@ -1237,7 +1237,7 @@ fieldset[disabled] .btn-link:focus {
 .navbar-nav > li.active > a:hover,
 .navbar-nav > li.active > a:focus {
   color: var(--white);
-  background: none;
+  background-color: black;
   border-bottom: 2px solid #ffc107;
 }
 
@@ -3947,7 +3947,7 @@ body {
 }
 
 code {
-  color: var(--black)
+  color: var(--black);
   border: none;
   background: none;
 }

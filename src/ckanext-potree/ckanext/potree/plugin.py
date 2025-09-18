@@ -17,7 +17,9 @@ class PotreePlugin(plugins.SingletonPlugin):
 
     # IBlueprint
     def get_blueprint(self):
-        blueprint = toolkit.Blueprint('potree', __name__)
+        from flask import Blueprint
+        blueprint = Blueprint('potree', __name__)
+
         # Add URL rules using the proper pattern for CKAN 2.11
         blueprint.add_url_rule(
             '/dataset/potree/<resource_id>',

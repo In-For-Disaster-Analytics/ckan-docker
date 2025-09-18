@@ -10,190 +10,212 @@ import ckan.lib.uploader as uploader
 
 log = logging.getLogger(__name__)
 
+def scene_viewer(resource_id):
+    """Display Potree scene data in formatted JSON view"""
+    try:
+        # Check resource exists and get metadata
+        resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
+
+        # Check user permissions
+        context = {'user': toolkit.c.user}
+        toolkit.check_access('resource_show', context, {'id': resource_id})
+
+        # Validate it's a Potree scene file
+        if not _is_potree_scene_resource(resource):
+            toolkit.abort(400, _("Resource is not a Potree scene file"))
+
+        # Fetch scene data
+        scene_data_raw = _fetch_scene_data(resource)
+
+        if scene_data_raw is None:
+            toolkit.abort(404, _("Scene data could not be loaded"))
+
+        # Parse JSON5 for template access
+        scene_data_parsed = None
+        try:
+            import json5
+            scene_data_parsed = json5.loads(scene_data_raw)
+        except Exception as e:
+            log.warning(f"Could not parse scene data as JSON5: {e}")
+            scene_data_parsed = {}
+
+        # Get package info for context
+        package = toolkit.get_action('package_show')({}, {'id': resource['package_id']})
+
+        return toolkit.render('potree/index.html', {
+            'resource': resource,
+            'package': package,
+            'scene_data': scene_data_parsed,
+            'scene_json': scene_data_raw,
+            'resource_id': resource_id
+        })
+
+    except toolkit.ObjectNotFound:
+        toolkit.abort(404, _("Resource not found"))
+    except toolkit.NotAuthorized:
+        toolkit.abort(403, _("Not authorized to view this resource"))
+    except Exception as e:
+        log.error(f"Error displaying Potree scene {resource_id}: {str(e)}")
+        toolkit.abort(500, _("Error loading scene data"))
+
+
+def edit_scene(resource_id):
+    """Edit Potree scene configuration file"""
+    try:
+        # Check resource exists and get metadata
+        resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
+
+        # Check user permissions - require edit access
+        context = {'user': toolkit.c.user}
+        toolkit.check_access('resource_update', context, {'id': resource_id})
+
+        # Validate it's a Potree scene file
+        if not _is_potree_scene_resource(resource):
+            toolkit.abort(400, _("Resource is not a Potree scene file"))
+
+        # Get package info for context
+        package = toolkit.get_action('package_show')({}, {'id': resource['package_id']})
+
+        context = {
+            'resource': resource,
+            'package': package,
+            'resource_id': resource_id,
+            'content': '',
+            'error': None,
+            'success': None
+        }
+
+        if request.method == 'POST':
+            # Handle form submission
+            new_content = request.form.get('content', '').strip()
+
+            if not new_content:
+                context['error'] = _("Content cannot be empty")
+            else:
+                try:
+                    # Validate JSON5 syntax
+                    json5.loads(new_content)
+
+                    # Save the content
+                    if _save_scene_data(resource, new_content):
+                        context['success'] = _("Scene configuration saved successfully")
+                        context['content'] = new_content
+                    else:
+                        context['error'] = _("Failed to save scene configuration")
+                        context['content'] = new_content
+                except Exception as e:
+                    context['error'] = _("Invalid JSON5 syntax: {}").format(str(e))
+                    context['content'] = new_content
+        else:
+            # GET request - load existing content
+            scene_data_raw = _fetch_scene_data(resource)
+            if scene_data_raw:
+                context['content'] = scene_data_raw
+            else:
+                context['error'] = _("Could not load existing scene data")
+
+        return toolkit.render('potree/edit.html', context)
+
+    except toolkit.ObjectNotFound:
+        toolkit.abort(404, _("Resource not found"))
+    except toolkit.NotAuthorized:
+        toolkit.abort(403, _("Not authorized to edit this resource"))
+    except Exception as e:
+        log.error(f"Error editing Potree scene {resource_id}: {str(e)}")
+        toolkit.abort(500, _("Error editing scene data"))
+
+
+def save_scene(resource_id):
+    """Save scene data from Potree viewer back to resource file"""
+    try:
+        # Check resource exists and get metadata
+        resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
+
+        # Check user permissions - require edit access
+        auth_context = {'user': toolkit.c.user}
+        toolkit.check_access('resource_update', auth_context, {'id': resource_id})
+
+        # Validate it's a Potree scene file
+        if not _is_potree_scene_resource(resource):
+            return jsonify({
+                'success': False,
+                'error': 'Resource is not a Potree scene file'
+            }), 400
+
+        # Get content from form data
+        new_content = request.form.get('content', '').strip()
+
+        if not new_content:
+            return jsonify({
+                'success': False,
+                'error': 'Content cannot be empty'
+            }), 400
+
+        try:
+            # Validate JSON5 syntax
+            json5.loads(new_content)
+
+            # Save the content
+            if _save_scene_data(resource, new_content):
+                log.info(f"Scene data saved successfully for resource: {resource_id}")
+                return jsonify({
+                    'success': True,
+                    'message': 'Scene data saved successfully'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to save scene data'
+                }), 500
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid JSON5 syntax: {str(e)}'
+            }), 400
+
+    except toolkit.ObjectNotFound:
+        return jsonify({
+            'success': False,
+            'error': 'Resource not found'
+        }), 404
+    except toolkit.NotAuthorized:
+        return jsonify({
+            'success': False,
+            'error': 'Not authorized to edit this resource'
+        }), 403
+    except Exception as e:
+        log.error(f"Error saving Potree scene {resource_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error saving scene data'
+        }), 500
+
+
 def get_blueprints():
     blueprint = Blueprint('potree', __name__)
 
-    @blueprint.route('/dataset/potree/<resource_id>')
-    def scene_viewer(resource_id):
-        """Display Potree scene data in formatted JSON view"""
-        try:
-            # Check resource exists and get metadata
-            resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
+    # Add URL rules using the proper pattern for CKAN 2.11
+    blueprint.add_url_rule(
+        '/dataset/potree/<resource_id>',
+        'scene_viewer',
+        scene_viewer,
+        methods=['GET']
+    )
 
-            # Check user permissions
-            context = {'user': toolkit.c.user}
-            toolkit.check_access('resource_show', context, {'id': resource_id})
+    blueprint.add_url_rule(
+        '/dataset/potree/<resource_id>/edit',
+        'edit_scene',
+        edit_scene,
+        methods=['GET', 'POST']
+    )
 
-            # Validate it's a Potree scene file
-            if not _is_potree_scene_resource(resource):
-                toolkit.abort(400, _("Resource is not a Potree scene file"))
-
-            # Fetch scene data
-            scene_data_raw = _fetch_scene_data(resource)
-
-            if scene_data_raw is None:
-                toolkit.abort(404, _("Scene data could not be loaded"))
-
-            # Parse JSON5 for template access
-            scene_data_parsed = None
-            try:
-                import json5
-                scene_data_parsed = json5.loads(scene_data_raw)
-            except Exception as e:
-                log.warning(f"Could not parse scene data as JSON5: {e}")
-                scene_data_parsed = {}
-
-            # Get package info for context
-            package = toolkit.get_action('package_show')({}, {'id': resource['package_id']})
-
-            return toolkit.render('potree/index.html', {
-                'resource': resource,
-                'package': package,
-                'scene_data': scene_data_parsed,
-                'scene_json': scene_data_raw,
-                'resource_id': resource_id
-            })
-
-        except toolkit.ObjectNotFound:
-            toolkit.abort(404, _("Resource not found"))
-        except toolkit.NotAuthorized:
-            toolkit.abort(403, _("Not authorized to view this resource"))
-        except Exception as e:
-            log.error(f"Error displaying Potree scene {resource_id}: {str(e)}")
-            toolkit.abort(500, _("Error loading scene data"))
-
-    @blueprint.route('/dataset/potree/<resource_id>/edit', methods=['GET', 'POST'])
-    def edit_scene(resource_id):
-        """Edit Potree scene configuration file"""
-        try:
-            # Check resource exists and get metadata
-            resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
-
-            # Check user permissions - require edit access
-            context = {'user': toolkit.c.user}
-            toolkit.check_access('resource_update', context, {'id': resource_id})
-
-            # Validate it's a Potree scene file
-            if not _is_potree_scene_resource(resource):
-                toolkit.abort(400, _("Resource is not a Potree scene file"))
-
-            # Get package info for context
-            package = toolkit.get_action('package_show')({}, {'id': resource['package_id']})
-
-            context = {
-                'resource': resource,
-                'package': package,
-                'resource_id': resource_id,
-                'content': '',
-                'error': None,
-                'success': None
-            }
-
-            if request.method == 'POST':
-                # Handle form submission
-                new_content = request.form.get('content', '').strip()
-                
-                if not new_content:
-                    context['error'] = _("Content cannot be empty")
-                else:
-                    try:
-                        # Validate JSON5 syntax
-                        json5.loads(new_content)
-                        
-                        # Save the content
-                        if _save_scene_data(resource, new_content):
-                            context['success'] = _("Scene configuration saved successfully")
-                            context['content'] = new_content
-                        else:
-                            context['error'] = _("Failed to save scene configuration")
-                            context['content'] = new_content
-                    except Exception as e:
-                        context['error'] = _("Invalid JSON5 syntax: {}").format(str(e))
-                        context['content'] = new_content
-            else:
-                # GET request - load existing content
-                scene_data_raw = _fetch_scene_data(resource)
-                if scene_data_raw:
-                    context['content'] = scene_data_raw
-                else:
-                    context['error'] = _("Could not load existing scene data")
-
-            return toolkit.render('potree/edit.html', context)
-
-        except toolkit.ObjectNotFound:
-            toolkit.abort(404, _("Resource not found"))
-        except toolkit.NotAuthorized:
-            toolkit.abort(403, _("Not authorized to edit this resource"))
-        except Exception as e:
-            log.error(f"Error editing Potree scene {resource_id}: {str(e)}")
-            toolkit.abort(500, _("Error editing scene data"))
-
-    @blueprint.route('/dataset/potree/<resource_id>/save', methods=['POST'])
-    def save_scene(resource_id):
-        """Save scene data from Potree viewer back to resource file"""
-        try:
-            # Check resource exists and get metadata
-            resource = toolkit.get_action('resource_show')({}, {'id': resource_id})
-
-            # Check user permissions - require edit access
-            auth_context = {'user': toolkit.c.user}
-            toolkit.check_access('resource_update', auth_context, {'id': resource_id})
-
-            # Validate it's a Potree scene file
-            if not _is_potree_scene_resource(resource):
-                return jsonify({
-                    'success': False,
-                    'error': 'Resource is not a Potree scene file'
-                }), 400
-
-            # Get content from form data
-            new_content = request.form.get('content', '').strip()
-            
-            if not new_content:
-                return jsonify({
-                    'success': False,
-                    'error': 'Content cannot be empty'
-                }), 400
-
-            try:
-                # Validate JSON5 syntax
-                json5.loads(new_content)
-                
-                # Save the content
-                if _save_scene_data(resource, new_content):
-                    log.info(f"Scene data saved successfully for resource: {resource_id}")
-                    return jsonify({
-                        'success': True,
-                        'message': 'Scene data saved successfully'
-                    })
-                else:
-                    return jsonify({
-                        'success': False,
-                        'error': 'Failed to save scene data'
-                    }), 500
-                    
-            except Exception as e:
-                return jsonify({
-                    'success': False,
-                    'error': f'Invalid JSON5 syntax: {str(e)}'
-                }), 400
-
-        except toolkit.ObjectNotFound:
-            return jsonify({
-                'success': False,
-                'error': 'Resource not found'
-            }), 404
-        except toolkit.NotAuthorized:
-            return jsonify({
-                'success': False,
-                'error': 'Not authorized to edit this resource'
-            }), 403
-        except Exception as e:
-            log.error(f"Error saving Potree scene {resource_id}: {str(e)}")
-            return jsonify({
-                'success': False,
-                'error': 'Error saving scene data'
-            }), 500
+    blueprint.add_url_rule(
+        '/dataset/potree/<resource_id>/save',
+        'save_scene',
+        save_scene,
+        methods=['POST']
+    )
 
     return blueprint
 

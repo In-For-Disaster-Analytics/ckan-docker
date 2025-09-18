@@ -245,3 +245,27 @@ class TestPotreeViews:
         with app.test_client() as client:
             url = toolkit.url_for('potree.scene_viewer', resource_id='test-id')
             assert '/dataset/potree/test-id' in url
+
+    def test_blueprint_registration(self):
+        """Test that the blueprint is properly registered with correct routes."""
+        from ckanext.potree import views
+
+        blueprint = views.get_blueprints()
+
+        # Check that blueprint was created
+        assert blueprint is not None
+        assert blueprint.name == 'potree'
+
+        # Check that routes are registered
+        rules = list(blueprint.url_map.iter_rules())
+        rule_endpoints = [rule.endpoint for rule in rules]
+
+        assert 'scene_viewer' in rule_endpoints
+        assert 'edit_scene' in rule_endpoints
+        assert 'save_scene' in rule_endpoints
+
+        # Check route patterns
+        rule_patterns = [rule.rule for rule in rules]
+        assert '/dataset/potree/<resource_id>' in rule_patterns
+        assert '/dataset/potree/<resource_id>/edit' in rule_patterns
+        assert '/dataset/potree/<resource_id>/save' in rule_patterns

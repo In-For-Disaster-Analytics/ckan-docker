@@ -192,33 +192,6 @@ def save_scene(resource_id):
         }), 500
 
 
-def get_blueprints():
-    blueprint = Blueprint('potree', __name__)
-
-    # Add URL rules using the proper pattern for CKAN 2.11
-    blueprint.add_url_rule(
-        '/dataset/potree/<resource_id>',
-        'scene_viewer',
-        scene_viewer,
-        methods=['GET']
-    )
-
-    blueprint.add_url_rule(
-        '/dataset/potree/<resource_id>/edit',
-        'edit_scene',
-        edit_scene,
-        methods=['GET', 'POST']
-    )
-
-    blueprint.add_url_rule(
-        '/dataset/potree/<resource_id>/save',
-        'save_scene',
-        save_scene,
-        methods=['POST']
-    )
-
-    return blueprint
-
 def _is_potree_scene_resource(resource):
     """Check if resource is a Potree scene file"""
     # Check by format
@@ -340,7 +313,7 @@ def _parse_and_normalize_content(content):
 
 def _save_scene_data(resource, content):
     """Save scene data to resource file"""
-    
+
     if not resource or not isinstance(resource, dict):
         log.error("Invalid resource provided to _save_scene_data")
         return False
@@ -371,7 +344,7 @@ def _save_scene_data(resource, content):
 
 def _save_local_file(resource, content):
     """Save content to local uploaded file"""
-    
+
     try:
         upload = uploader.get_resource_uploader(resource)
         file_path = upload.get_path(resource['id'])

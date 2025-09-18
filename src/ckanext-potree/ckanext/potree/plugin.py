@@ -17,7 +17,29 @@ class PotreePlugin(plugins.SingletonPlugin):
 
     # IBlueprint
     def get_blueprint(self):
-        return views.get_blueprints()
+        blueprint = toolkit.Blueprint('potree', __name__)
+        # Add URL rules using the proper pattern for CKAN 2.11
+        blueprint.add_url_rule(
+            '/dataset/potree/<resource_id>',
+            'scene_viewer',
+            views.scene_viewer,
+            methods=['GET']
+        )
+
+        blueprint.add_url_rule(
+            '/dataset/potree/<resource_id>/edit',
+            'edit_scene',
+            views.edit_scene,
+            methods=['GET', 'POST']
+        )
+
+        blueprint.add_url_rule(
+            '/dataset/potree/<resource_id>/save',
+            'save_scene',
+            views.save_scene,
+            methods=['POST']
+        )
+        return blueprint
 
     # ITemplateHelpers
     def get_helpers(self):

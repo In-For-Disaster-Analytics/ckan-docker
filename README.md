@@ -273,8 +273,7 @@ This CKAN instance uses TACC's Corral high-performance file system for dataset s
 
 ### Important Limitations
 
-> [!WARNING]
-> **Known Storage Limitations**: The current storage backend has several important limitations that affect multi-organization deployments:
+> [!WARNING] > **Known Storage Limitations**: The current storage backend has several important limitations that affect multi-organization deployments:
 >
 > - **Shared Storage Directory**: All CKAN organizations currently use a single storage directory (`/data/ckan`), which creates permission conflicts and security concerns
 > - **Billing Attribution**: Cannot attribute storage usage to individual TACC allocations, making it difficult to track resource consumption per organization
@@ -318,3 +317,7 @@ docker compose -f docker-compose.dev.yml exec ckan-dev ckan sysadmin add <your-u
 ```
 
 Replace `<your-username>` with the username you used for OAuth2 authentication.
+
+# Production Deployment
+
+The documentation for deploying this CKAN instance in a production environment is available in the [Production Deployment Guide](production-deployment.md).

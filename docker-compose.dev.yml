@@ -41,7 +41,7 @@ services:
     volumes:
       - ckan_storage_dev:/var/lib/ckan
       - ./src:/srv/app/src_extensions
-      - ../ckanext-oauth2:/srv/app/src_extensions/ckanext-oauth2
+      - ./src/ckanext-oauth2:/srv/app/src_extensions/ckanext-oauth2
       - pip_cache_dev_py310:/root/.cache/pip
       - site_packages_dev_py310:/usr/local/lib/python3.10/site-packages
       - local_bin_dev_py310:/usr/local/bin

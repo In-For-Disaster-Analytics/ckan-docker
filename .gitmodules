@@ -1,0 +1,3 @@
+[submodule "src/ckanext-oauth2"]
+	path = src/ckanext-oauth2
+	url = https://github.com/In-For-Disaster-Analytics/ckanext-oauth2.git

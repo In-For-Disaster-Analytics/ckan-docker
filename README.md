@@ -106,6 +106,25 @@ bin/install_src
 bin/compose up
 ```
 
+### First-Time Database Setup
+
+On the first startup (or after removing database volumes), you must manually initialize the database and run plugin migrations:
+
+```bash
+# Access the CKAN container
+bin/shell
+
+# Initialize the CKAN database
+ckan db init
+
+# Run oauth2 plugin migrations
+cd src_extensions/ckanext-oauth2/
+ckan db upgrade
+```
+
+> [!NOTE]
+> The automatic database initialization may fail during first startup due to timing issues with plugin migrations. Running these commands manually ensures proper setup.
+
 > [!IMPORTANT]
 > You must run `bin/install_src` before starting CKAN for the first time (or after removing volumes). Otherwise, CKAN will fail with errors like:
 > ```

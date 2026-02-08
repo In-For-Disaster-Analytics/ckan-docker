@@ -19,7 +19,8 @@ services:
     volumes:
       # The volume to chown
       - ./src:/srv/app/src_extensions
-    command: sh -c 'chown -R :502 /srv/app/src_extensions && find /srv/app/src_extensions -type d -exec chmod 775 {} + && find /srv/app/src_extensions -type f -exec chmod 664 {} +'
+    #command: sh -c 'chown -R :502 /srv/app/src_extensions && find /srv/app/src_extensions -type d -exec chmod 775 {} + && find /srv/app/src_extensions -type f -exec chmod 664 {} +'
+    command: sh -c 'chown -R :502 /srv/app/src_extensions && find /srv/app/src_extensions -type d -exec chmod 775 {} + +'
 
   ckan-dev:
     build:

@@ -85,6 +85,7 @@ Development mode is for developers making code changes to CKAN or creating/modif
 | `bin/ckan` | Execute CKAN CLI commands within the container |
 | `bin/shell` | Access bash shell in the dev container |
 | `bin/reload` | Restart CKAN without rebuilding containers |
+| `bin/clean` | Stop and remove all CKAN containers and volumes |
 
 ### Getting Started
 

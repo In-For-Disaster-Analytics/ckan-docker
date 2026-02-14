@@ -24,6 +24,7 @@ services:
     command: sh -c 'echo "disabled"'
 
   ckan-dev:
+    platform: linux/amd64
     build:
       context: ckan/
       dockerfile: Dockerfile.dev
@@ -58,6 +59,7 @@ services:
       - change-vol-ownership
 
   datapusher:
+    platform: linux/amd64
     image: ckan/ckan-base-datapusher:0.0.20
     env_file:
       - .env.dev.config
@@ -70,6 +72,7 @@ services:
       retries: 3
 
   db:
+    platform: linux/amd64
     build:
       context: postgresql/
     env_file:
@@ -82,6 +85,7 @@ services:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
 
   solr:
+    platform: linux/amd64
     image: ckan/ckan-solr:2.9-solr9-spatial
     volumes:
       - solr_data_dev:/var/solr

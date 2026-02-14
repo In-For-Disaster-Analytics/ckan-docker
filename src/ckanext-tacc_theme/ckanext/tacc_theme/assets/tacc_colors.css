@@ -70,7 +70,9 @@ blockquote {
   border: 1px solid #999;
 }
 
-.label, .badge.bg-dark, .badge.bg-secondary {
+.label,
+.badge.bg-dark,
+.badge.bg-secondary {
   border: 1px solid var(--black);
 }
 
@@ -3119,11 +3121,6 @@ fieldset[disabled] .control-custom.disabled .checkbox.btn.focus {
   background-color: #faedcf;
 }
 
-.resource-upload-field input {
-  border: solid transparent;
-  border-width: 100px 0 0 200px;
-}
-
 .resource-upload-field.loading {
   background: url('../../base/images/loading-spinner.gif') no-repeat center
     right;
@@ -3173,7 +3170,8 @@ fieldset[disabled] .control-custom.disabled .checkbox.btn.focus {
   color: #333;
 }
 
-.label-inverse, .badge.bg-dark {
+.label-inverse,
+.badge.bg-dark {
   background-color: var(--text-muted);
 }
 

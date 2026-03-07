@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-token-lifecycle
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md]
 started: 2026-02-20T00:00:00Z
@@ -53,7 +53,13 @@ skipped: 0
   reason: "User reported: API call returns 500 ProgrammingError: can't adapt type 'User'. oauth2helper.identify() returns tuple (name, User) but plugin.py passes it directly to model.User.by_name() which expects a string."
   severity: blocker
   test: 3
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "oauth2helper.identify() returns tuple (name, user_obj) but plugin.py line 152 assigns it to single variable without unpacking. The tuple is then passed to model.User.by_name() at line 183 which expects a string. Pre-existing bug, not introduced by Phase 2. views.py already correctly unpacks with: user_name, user_obj = oauth2helper.identify(token)"
+  artifacts:
+    - path: "src/ckanext-oauth2/ckanext/oauth2/plugin.py"
+      issue: "Line 152: user_name = self.oauth2helper.identify(token) — missing tuple unpack"
+    - path: "src/ckanext-oauth2/ckanext/oauth2/oauth2.py"
+      issue: "Line 364: returns (user.name, user) — correct, no change needed"
+  missing:
+    - "Unpack tuple at line 152: user_name, user_obj = self.oauth2helper.identify(token)"
+    - "Remove isinstance(user_name, tuple) guard at line 188 (becomes dead code)"
+  debug_session: ".planning/debug/bearer-jwt-500-programming-error.md"

@@ -1,5 +1,14 @@
 #!/bin/sh
 
+# Add ckan.datapusher.api_token placeholder directly in INI file to avoid
+# plugin load failures (ckan config-tool itself loads plugins, causing the
+# same error). Updated with correct value after prerun.py creates the admin user.
+if grep -q "ckan.datapusher.api_token" $CKAN_INI; then
+    sed -i "s/^ckan.datapusher.api_token.*/ckan.datapusher.api_token = xxx/" $CKAN_INI
+else
+    sed -i "/^\[app:main\]/a ckan.datapusher.api_token = xxx" $CKAN_INI
+fi
+
 # Install any local extensions in the src_extensions volume
 echo "Looking for local extensions to install..."
 echo "Extension dir contents:"
@@ -49,9 +58,6 @@ done
 # Set debug to true
 echo "Enabling debug mode"
 ckan config-tool $CKAN_INI -s DEFAULT "debug = true"
-
-# Add ckan.datapusher.api_token to the CKAN config file (updated with corrected value later)
-ckan config-tool $CKAN_INI ckan.datapusher.api_token=xxx
 
 # Set up the Secret key used by Beaker and Flask
 # This can be overriden using a CKAN___BEAKER__SESSION__SECRET env var

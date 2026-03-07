@@ -73,6 +73,8 @@ services:
 
   db:
     platform: linux/amd64
+    ports:
+      - 5432:5432
     build:
       context: postgresql/
     env_file:
@@ -86,7 +88,7 @@ services:
 
   solr:
     platform: linux/amd64
-    image: ckan/ckan-solr:2.9-solr9-spatial
+    image: ckan/ckan-solr:2.11-solr9-spatial
     volumes:
       - solr_data_dev:/var/solr
     restart: unless-stopped

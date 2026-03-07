@@ -8,3 +8,7 @@
 
 # Development files
 lissa-notes.md
+
+# Planning docs (local-only)
+.planning/
+docs/plans/

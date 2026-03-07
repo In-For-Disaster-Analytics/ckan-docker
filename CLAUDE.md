@@ -63,9 +63,13 @@ bash -x scripts/tapis-oauth/create-client.sh tacc_username tacc_password client-
 
 **Test CKAN Extensions:**
 ```bash
-# Navigate to extension directory and run tests
+# Run tests for an extension (from its directory)
 cd src/ckanext-<extension-name>
-pytest --ckan-ini=test.ini
+CKAN_INI=test.ini uv run pytest
+
+# Example: run OAuth2 extension tests
+cd src/ckanext-oauth2
+CKAN_INI=test.ini uv run pytest -v
 ```
 
 ## Architecture Overview

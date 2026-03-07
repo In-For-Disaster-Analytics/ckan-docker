@@ -74,21 +74,104 @@ docker compose up -d
 
 ## Development mode
 
-To run CKAN in development mode, use the `docker-compose.dev.yml` file.
+Development mode is for developers making code changes to CKAN or creating/modifying extensions. It uses `docker-compose.dev.yml` with helper scripts in the `bin/` directory.
 
-Build the images and run the containers:
+### Helper Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `bin/compose` | Run Docker Compose for dev environment |
+| `bin/install_src` | Install all extensions from `src/` directory |
+| `bin/ckan` | Execute CKAN CLI commands within the container |
+| `bin/shell` | Access bash shell in the dev container |
+| `bin/reload` | Restart CKAN without rebuilding containers |
+| `bin/clean` | Stop and remove all CKAN containers and volumes |
+
+### Getting Started
+
+1. Build the development images:
 
 ```bash
-docker compose -f docker-compose.dev.yml  build
+bin/compose build
 ```
 
-Run the CKAN development server:
+2. Install extensions from the `src/` directory:
 
 ```bash
-docker compose -f docker-compose.dev.yml  up -d
+bin/install_src
 ```
 
-To edit the theme, you can edit the files in the `src/ckanext-tacc_theme` directory.
+3. Start the containers:
+
+```bash
+bin/compose up
+```
+
+### First-Time Database Setup
+
+On the first startup (or after removing database volumes), you must manually initialize the database and run plugin migrations:
+
+```bash
+# Access the CKAN container
+bin/shell
+
+# Initialize the CKAN database
+ckan db init
+
+# Run oauth2 plugin migrations
+cd src_extensions/ckanext-oauth2/
+ckan db upgrade
+```
+
+> [!NOTE]
+> The automatic database initialization may fail during first startup due to timing issues with plugin migrations. Running these commands manually ensures proper setup.
+
+> [!IMPORTANT]
+> You must run `bin/install_src` before starting CKAN for the first time (or after removing volumes). Otherwise, CKAN will fail with errors like:
+> ```
+> ckan.plugins.base.PluginNotFoundException: Interface dso_scheming does not exist
+> ```
+
+### Local Extension Development
+
+Extensions in the `src/` directory are mounted to `/srv/app/src_extensions/` in the container. The `bin/install_src` script installs them in editable mode, so changes are reflected immediately without rebuilding.
+
+The `ckanext-oauth2` extension is mounted from `../ckanext-oauth2` for local development.
+
+To edit the theme, modify files in `src/ckanext-tacc_theme`.
+
+### Cleaning Up Docker Volumes
+
+The development environment uses named volumes (e.g., `site_packages_dev_py310`, `pip_cache_dev_py310`) to persist Python packages between container restarts.
+
+> [!WARNING]
+> **Multiple Repository Clones**: If you have this repository cloned in multiple directories, they share the same named volumes. Running `docker compose down -v` only removes volumes declared in the current compose file's project scope. Volumes created by another clone may persist and cause stale package versions.
+
+To fully clean up all CKAN-related containers and volumes:
+
+```bash
+# 1. Stop all running containers with "ckan" in the name
+docker stop $(docker ps -q -f name=ckan)
+
+# 2. Remove all containers with "ckan" in the name
+docker rm $(docker ps -aq -f name=ckan)
+
+# 3. Remove all volumes with "ckan" in the name
+docker volume rm $(docker volume ls -q -f name=ckan)
+```
+
+> [!NOTE]
+> You must stop and remove containers **before** removing volumes. If you see `Resource is still in use` errors, ensure all containers using the volumes are stopped and removed first.
+
+To verify cleanup:
+
+```bash
+# List remaining CKAN volumes
+docker volume ls -f name=ckan
+
+# List remaining CKAN containers
+docker ps -a -f name=ckan
+```
 
 ## Install (build and run) CKAN plus dependencies
 

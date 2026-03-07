@@ -2,9 +2,9 @@ volumes:
   ckan_storage_dev:
   pg_data_dev:
   solr_data_dev:
-  pip_cache_dev:
-  site_packages_dev:
-  local_bin_dev:
+  pip_cache_dev_py310:
+  site_packages_dev_py310:
+  local_bin_dev_py310:
   home_dir_dev:
 
 services:
@@ -12,23 +12,26 @@ services:
     # We can use any image we want as long as we can chown
     image: busybox
     # Need a user priviliged enough to chown
-    user: 'root'
+    user: "root"
     # Specify the group in question
     group_add:
-      - '502'
+      - "502"
     volumes:
       # The volume to chown
       - ./src:/srv/app/src_extensions
-    command: sh -c 'chown -R :502 /srv/app/src_extensions && chmod -R 775 /srv/app/src_extensions'
+    #command: sh -c 'chown -R :502 /srv/app/src_extensions && find /srv/app/src_extensions -type d -exec chmod 775 {} + && find /srv/app/src_extensions -type f -exec chmod 664 {} +'
+    # command: sh -c 'chown -R :502 /srv/app/src_extensions && find /srv/app/src_extensions -type d -exec chmod 775 {} +'
+    command: sh -c 'echo "disabled"'
 
   ckan-dev:
+    platform: linux/amd64
     build:
       context: ckan/
       dockerfile: Dockerfile.dev
       args:
         - TZ=UTC
     extra_hosts:
-      - 'ckan.tacc.cloud:127.0.0.1'
+      - "ckan.tacc.cloud:127.0.0.1"
     env_file:
       - .env.dev.config
       - .env.dev.secrets
@@ -37,17 +40,18 @@ services:
       - solr
       - redis
     ports:
-      - '0.0.0.0:5000:5000'
+      - "0.0.0.0:5000:5000"
     volumes:
       - ckan_storage_dev:/var/lib/ckan
       - ./src:/srv/app/src_extensions
-      - pip_cache_dev:/root/.cache/pip
-      - site_packages_dev:/usr/local/lib/python3.10/site-packages
-      - local_bin_dev:/usr/local/bin
+      - ./src/ckanext-oauth2:/srv/app/src_extensions/ckanext-oauth2
+      - pip_cache_dev_py310:/root/.cache/pip
+      - site_packages_dev_py310:/usr/local/lib/python3.10/site-packages
+      - local_bin_dev_py310:/usr/local/bin
       - home_dir_dev:/srv/app/
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:5000']
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:5000"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -55,18 +59,22 @@ services:
       - change-vol-ownership
 
   datapusher:
+    platform: linux/amd64
     image: ckan/ckan-base-datapusher:0.0.20
     env_file:
       - .env.dev.config
       - .env.dev.secrets
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:8800']
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8800"]
       interval: 60s
       timeout: 10s
       retries: 3
 
   db:
+    platform: linux/amd64
+    ports:
+      - 5432:5432
     build:
       context: postgresql/
     env_file:
@@ -76,18 +84,19 @@ services:
       - pg_data_dev:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'postgres']
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
 
   solr:
-    image: ckan/ckan-solr:2.9-solr9-spatial
+    platform: linux/amd64
+    image: ckan/ckan-solr:2.11-solr9-spatial
     volumes:
       - solr_data_dev:/var/solr
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'wget', '-qO', '/dev/null', 'http://localhost:8983/solr/']
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8983/solr/"]
 
   redis:
     image: redis:6
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'redis-cli', '-e', 'QUIT']
+      test: ["CMD", "redis-cli", "-e", "QUIT"]

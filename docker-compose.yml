@@ -6,8 +6,8 @@ volumes:
       device: /data/ckan
   pg_data:
   solr_data:
-  pip_cache:
-  site_packages:
+  pip_cache_py310:
+  site_packages_py310:
 
 services:
   ckan:
@@ -35,8 +35,8 @@ services:
         condition: service_healthy
     volumes:
       - /data/ckan:/var/lib/ckan
-      - pip_cache:/root/.cache/pip
-      - site_packages:/usr/lib/python3.10/site-packages
+      - pip_cache_py310:/root/.cache/pip
+      - site_packages_py310:/usr/lib/python3.10/site-packages
     restart: unless-stopped
     ports:
       - '5000:5000'

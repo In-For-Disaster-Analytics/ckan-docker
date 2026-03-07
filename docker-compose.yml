@@ -94,7 +94,7 @@ services:
         max-size: 100m
     networks:
       - solrnet
-    image: ckan/ckan-solr:2.9-solr9-spatial
+    image: ckan/ckan-solr:2.11-solr9-spatial
     ports:
       - 8983:8983
     volumes:

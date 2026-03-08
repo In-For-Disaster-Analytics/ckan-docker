@@ -1,3 +1,4 @@
+migration_backups/
 .planning
 .venv/
 # Environment files

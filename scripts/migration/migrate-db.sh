@@ -300,7 +300,7 @@ detect_ckan_service() {
 
 usage() {
     cat <<USAGE
-Usage: migrate-db.sh [OPTIONS] <ckan_dump> <datastore_dump>
+Usage: migrate-db.sh [OPTIONS] <ckan_dump> [datastore_dump]
 
 Migrate a CKAN 2.9 database dump into a running CKAN 2.11 environment.
 
@@ -309,7 +309,8 @@ schema (Alembic revision ccd38ad5fced) before proceeding with migration.
 
 Arguments:
   ckan_dump           Path to the CKAN database dump file (pg_dump custom format)
-  datastore_dump      Path to the datastore database dump file (pg_dump custom format)
+  datastore_dump      Path to the datastore database dump file (optional, pg_dump custom format)
+                      If omitted, datastore restore/upgrade/permissions steps are skipped.
 
 Options:
   --dry-run           Run migration against temporary databases, then discard.
@@ -320,6 +321,7 @@ Options:
 
 Examples:
   migrate-db.sh backups/ckan.dump backups/datastore.dump
+  migrate-db.sh backups/ckan.dump
   migrate-db.sh --dry-run backups/ckan.dump backups/datastore.dump
   migrate-db.sh --force --compose-file docker-compose.yml ckan.dump datastore.dump
 USAGE
@@ -370,11 +372,15 @@ parse_args() {
         esac
     done
 
-    if [[ -z "$CKAN_DUMP" || -z "$DATASTORE_DUMP" ]]; then
-        log_error "Missing required arguments: <ckan_dump> and <datastore_dump>"
+    if [[ -z "$CKAN_DUMP" ]]; then
+        log_error "Missing required argument: <ckan_dump>"
         echo ""
         usage
         exit 1
+    fi
+
+    if [[ -z "$DATASTORE_DUMP" ]]; then
+        log_info "No datastore dump provided. Datastore restore/upgrade steps will be skipped."
     fi
 }
 
@@ -629,13 +635,17 @@ check_existing_databases() {
 # =============================================================================
 
 copy_dumps_to_container() {
-    local ckan_filename datastore_filename
+    local ckan_filename
     ckan_filename=$(basename "$CKAN_DUMP")
-    datastore_filename=$(basename "$DATASTORE_DUMP")
 
     log_detail "Copying dump files into db container..."
     docker compose -f "$COMPOSE_FILE" cp "$CKAN_DUMP" "db:/tmp/${ckan_filename}" 2>> "$LOG_FILE"
-    docker compose -f "$COMPOSE_FILE" cp "$DATASTORE_DUMP" "db:/tmp/${datastore_filename}" 2>> "$LOG_FILE"
+
+    if [[ -n "$DATASTORE_DUMP" ]]; then
+        local datastore_filename
+        datastore_filename=$(basename "$DATASTORE_DUMP")
+        docker compose -f "$COMPOSE_FILE" cp "$DATASTORE_DUMP" "db:/tmp/${datastore_filename}" 2>> "$LOG_FILE"
+    fi
     log_detail "Dump files copied to db container /tmp/"
 }
 
@@ -643,7 +653,9 @@ run_preflight_checks() {
     check_services
     copy_dumps_to_container
     validate_dump_file "$CKAN_DUMP" "CKAN dump"
-    validate_dump_file "$DATASTORE_DUMP" "Datastore dump"
+    if [[ -n "$DATASTORE_DUMP" ]]; then
+        validate_dump_file "$DATASTORE_DUMP" "Datastore dump"
+    fi
     check_pg_version "$CKAN_DUMP"
     validate_schema_version "$CKAN_DUMP"
     check_existing_databases
@@ -1071,9 +1083,9 @@ main() {
     echo ""
     echo "Migration plan:"
     echo "  CKAN dump:      $CKAN_DUMP"
-    echo "  Datastore dump: $DATASTORE_DUMP"
+    echo "  Datastore dump: ${DATASTORE_DUMP:-<not provided, skipping datastore steps>}"
     echo "  Target CKAN DB: $CKAN_DB"
-    echo "  Target DS DB:   $DATASTORE_DB"
+    echo "  Target DS DB:   ${DATASTORE_DUMP:+$DATASTORE_DB}${DATASTORE_DUMP:-<skipped>}"
     echo "  Compose file:   $COMPOSE_FILE"
     echo "  CKAN service:   $CKAN_SERVICE"
     echo "  Force mode:     $FORCE"
@@ -1091,12 +1103,20 @@ main() {
     fi
     run_step "Stop services"              step_stop_services
     run_step "Restore CKAN database"      step_restore_ckan
-    run_step "Restore datastore database" step_restore_datastore
+    if [[ -n "$DATASTORE_DUMP" ]]; then
+        run_step "Restore datastore database" step_restore_datastore
+    else
+        log_info "Skipping datastore restore (no dump provided)"
+    fi
     run_step "Duplicate email check"      step_check_duplicate_emails
     run_step "Start CKAN"                 step_start_ckan
     run_step "Schema migration"           step_db_upgrade
-    run_step "Datastore upgrade"          step_datastore_upgrade
-    run_step "Datastore permissions"      step_datastore_permissions
+    if [[ -n "$DATASTORE_DUMP" ]]; then
+        run_step "Datastore upgrade"          step_datastore_upgrade
+        run_step "Datastore permissions"      step_datastore_permissions
+    else
+        log_info "Skipping datastore upgrade and permissions (no dump provided)"
+    fi
     run_step "Search index rebuild"       step_search_reindex
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "DRY-RUN: Skipping DataPusher start"

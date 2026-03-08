@@ -21,6 +21,9 @@ COMPOSE_FILE="docker-compose.dev.yml"
 CKAN_SERVICE=""
 CKAN_INI="/srv/app/ckan.ini"
 FORCE=false
+DRY_RUN=false
+ORIGINAL_CKAN_DB=""
+ORIGINAL_DATASTORE_DB=""
 
 # Database defaults (overridden by env files)
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
@@ -133,7 +136,7 @@ cleanup_on_failure() {
         print_recovery_instructions "$CURRENT_STEP"
     fi
 }
-trap cleanup_on_failure EXIT
+trap 'cleanup_dryrun; cleanup_on_failure' EXIT
 
 print_recovery_instructions() {
     local step="$1"
@@ -141,6 +144,11 @@ print_recovery_instructions() {
     echo "=========================================="
     echo "RECOVERY INSTRUCTIONS"
     echo "=========================================="
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "NOTE: This was a DRY-RUN. No real databases were affected."
+        echo "Temporary databases will be cleaned up automatically."
+        echo ""
+    fi
     case "$step" in
         "Pre-flight checks")
             echo "Fix the reported issue and re-run the migration script."
@@ -244,6 +252,39 @@ run_ckan() {
     dc_exec "$CKAN_SERVICE" ckan "$@"
 }
 
+setup_dryrun() {
+    ORIGINAL_CKAN_DB="$CKAN_DB"
+    ORIGINAL_DATASTORE_DB="$DATASTORE_DB"
+    CKAN_DB="${CKAN_DB}_dryrun_$(date +%s)"
+    DATASTORE_DB="${DATASTORE_DB}_dryrun_$(date +%s)"
+    FORCE=true  # Temp DBs will not exist, skip existence prompt
+    log_info "DRY-RUN: Using temporary databases: $CKAN_DB, $DATASTORE_DB"
+}
+
+cleanup_dryrun() {
+    if [[ "$DRY_RUN" != "true" ]]; then
+        return 0
+    fi
+
+    # Only clean up if temp databases were actually set up (contain _dryrun_)
+    if [[ "$CKAN_DB" != *"_dryrun_"* ]]; then
+        return 0
+    fi
+
+    log_info "DRY-RUN: Cleaning up temporary databases..."
+    dc_exec db dropdb -U "$POSTGRES_USER" --if-exists "$CKAN_DB" 2>/dev/null || true
+    dc_exec db dropdb -U "$POSTGRES_USER" --if-exists "$DATASTORE_DB" 2>/dev/null || true
+    log_info "DRY-RUN: Temporary databases dropped."
+}
+
+run_ckan_dryrun() {
+    local ckan_url="postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${CKAN_DB}"
+    local ds_url="postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${DATASTORE_DB}"
+    dc_exec -e CKAN_SQLALCHEMY_URL="$ckan_url" \
+            -e CKAN_DATASTORE_WRITE_URL="$ds_url" \
+            "$CKAN_SERVICE" ckan "$@"
+}
+
 detect_ckan_service() {
     if grep -q "ckan-dev:" "$COMPOSE_FILE" 2>/dev/null; then
         CKAN_SERVICE="ckan-dev"
@@ -271,12 +312,15 @@ Arguments:
   datastore_dump      Path to the datastore database dump file (pg_dump custom format)
 
 Options:
+  --dry-run           Run migration against temporary databases, then discard.
+                      Real databases are not modified.
   --force             Overwrite existing databases without prompting
   --compose-file FILE Use the specified Docker Compose file (default: docker-compose.dev.yml)
   -h, --help          Show this help message and exit
 
 Examples:
   migrate-db.sh backups/ckan.dump backups/datastore.dump
+  migrate-db.sh --dry-run backups/ckan.dump backups/datastore.dump
   migrate-db.sh --force --compose-file docker-compose.yml ckan.dump datastore.dump
 USAGE
 }
@@ -287,6 +331,10 @@ parse_args() {
             -h|--help)
                 usage
                 exit 0
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
                 ;;
             --force)
                 FORCE=true
@@ -815,11 +863,19 @@ step_start_ckan() {
 # --- MIG-03: Schema migration (Alembic) ---
 step_db_upgrade() {
     local output
-    output=$(run_ckan -c "$CKAN_INI" db upgrade 2>&1) || {
-        echo "$output" >> "$LOG_FILE"
-        log_error "ckan db upgrade failed"
-        return 1
-    }
+    if [[ "$DRY_RUN" == "true" ]]; then
+        output=$(run_ckan_dryrun -c "$CKAN_INI" db upgrade 2>&1) || {
+            echo "$output" >> "$LOG_FILE"
+            log_error "ckan db upgrade failed"
+            return 1
+        }
+    else
+        output=$(run_ckan -c "$CKAN_INI" db upgrade 2>&1) || {
+            echo "$output" >> "$LOG_FILE"
+            log_error "ckan db upgrade failed"
+            return 1
+        }
+    fi
     echo "$output" >> "$LOG_FILE"
     log_detail "Schema migration completed successfully"
 }
@@ -827,30 +883,55 @@ step_db_upgrade() {
 # --- MIG-04: Datastore upgrade ---
 step_datastore_upgrade() {
     local output
-    output=$(run_ckan -c "$CKAN_INI" datastore upgrade 2>&1) || {
-        echo "$output" >> "$LOG_FILE"
-        log_error "ckan datastore upgrade failed"
-        return 1
-    }
+    if [[ "$DRY_RUN" == "true" ]]; then
+        output=$(run_ckan_dryrun -c "$CKAN_INI" datastore upgrade 2>&1) || {
+            echo "$output" >> "$LOG_FILE"
+            log_error "ckan datastore upgrade failed"
+            return 1
+        }
+    else
+        output=$(run_ckan -c "$CKAN_INI" datastore upgrade 2>&1) || {
+            echo "$output" >> "$LOG_FILE"
+            log_error "ckan datastore upgrade failed"
+            return 1
+        }
+    fi
     echo "$output" >> "$LOG_FILE"
     log_detail "Datastore upgrade completed successfully"
 }
 
 # --- MIG-05: Datastore permissions ---
 step_datastore_permissions() {
-    dc_exec "$CKAN_SERVICE" ckan -c "$CKAN_INI" datastore set-permissions 2>> "$LOG_FILE" | \
-        dc_exec db psql -U "$POSTGRES_USER" --set ON_ERROR_STOP=1 >> "$LOG_FILE" 2>&1
+    if [[ "$DRY_RUN" == "true" ]]; then
+        local ckan_url="postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${CKAN_DB}"
+        local ds_url="postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${DATASTORE_DB}"
+        dc_exec -e CKAN_SQLALCHEMY_URL="$ckan_url" \
+                -e CKAN_DATASTORE_WRITE_URL="$ds_url" \
+                "$CKAN_SERVICE" ckan -c "$CKAN_INI" datastore set-permissions 2>> "$LOG_FILE" | \
+            dc_exec db psql -U "$POSTGRES_USER" --set ON_ERROR_STOP=1 >> "$LOG_FILE" 2>&1
+    else
+        dc_exec "$CKAN_SERVICE" ckan -c "$CKAN_INI" datastore set-permissions 2>> "$LOG_FILE" | \
+            dc_exec db psql -U "$POSTGRES_USER" --set ON_ERROR_STOP=1 >> "$LOG_FILE" 2>&1
+    fi
     log_detail "Datastore permissions applied successfully"
 }
 
 # --- MIG-06: Search index rebuild ---
 step_search_reindex() {
     local output
-    output=$(run_ckan -c "$CKAN_INI" search-index rebuild 2>&1) || {
-        echo "$output" >> "$LOG_FILE"
-        log_error "search-index rebuild failed"
-        return 1
-    }
+    if [[ "$DRY_RUN" == "true" ]]; then
+        output=$(run_ckan_dryrun -c "$CKAN_INI" search-index rebuild 2>&1) || {
+            echo "$output" >> "$LOG_FILE"
+            log_error "search-index rebuild failed"
+            return 1
+        }
+    else
+        output=$(run_ckan -c "$CKAN_INI" search-index rebuild 2>&1) || {
+            echo "$output" >> "$LOG_FILE"
+            log_error "search-index rebuild failed"
+            return 1
+        }
+    fi
     echo "$output" >> "$LOG_FILE"
 
     # Show summary on terminal
@@ -901,7 +982,11 @@ step_validation() {
 
     # Solr search index check
     local search_result
-    search_result=$(run_ckan -c "$CKAN_INI" search-index check 2>&1 | tail -3) || search_result="ERROR checking search index"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        search_result=$(run_ckan_dryrun -c "$CKAN_INI" search-index check 2>&1 | tail -3) || search_result="ERROR checking search index"
+    else
+        search_result=$(run_ckan -c "$CKAN_INI" search-index check 2>&1 | tail -3) || search_result="ERROR checking search index"
+    fi
     echo "  Search index:  ${search_result}"
     log_detail "Validation - Search index: $search_result"
 
@@ -940,7 +1025,11 @@ main() {
     fi
 
     echo "=========================================="
-    echo "CKAN 2.9 -> 2.11 Database Migration"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "CKAN 2.9 -> 2.11 Database Migration (DRY RUN)"
+    else
+        echo "CKAN 2.9 -> 2.11 Database Migration"
+    fi
     echo "=========================================="
     echo ""
     log_info "Log file: $LOG_FILE"
@@ -950,6 +1039,11 @@ main() {
 
     # Load environment
     load_env
+
+    # Set up dry-run mode (override DB names before detect/preflight)
+    if [[ "$DRY_RUN" == "true" ]]; then
+        setup_dryrun
+    fi
 
     # Detect CKAN service name
     detect_ckan_service
@@ -967,10 +1061,18 @@ main() {
     echo "  Compose file:   $COMPOSE_FILE"
     echo "  CKAN service:   $CKAN_SERVICE"
     echo "  Force mode:     $FORCE"
+    echo "  Dry-run mode:   $DRY_RUN"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "  Original DBs:   $ORIGINAL_CKAN_DB, $ORIGINAL_DATASTORE_DB (not modified)"
+    fi
     echo ""
 
     # === MIGRATION PIPELINE ===
-    run_step "Pre-migration backup"       step_backup
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "DRY-RUN: Skipping pre-migration backup (real databases are not modified)"
+    else
+        run_step "Pre-migration backup"       step_backup
+    fi
     run_step "Stop services"              step_stop_services
     run_step "Restore CKAN database"      step_restore_ckan
     run_step "Restore datastore database" step_restore_datastore
@@ -980,11 +1082,25 @@ main() {
     run_step "Datastore upgrade"          step_datastore_upgrade
     run_step "Datastore permissions"      step_datastore_permissions
     run_step "Search index rebuild"       step_search_reindex
-    run_step "Start DataPusher"           step_start_datapusher
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "DRY-RUN: Skipping DataPusher start"
+    else
+        run_step "Start DataPusher"           step_start_datapusher
+    fi
     run_step "Validation"                 step_validation
 
     echo ""
-    log_info "Migration completed successfully."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "=========================================="
+        echo "DRY-RUN COMPLETE"
+        echo "=========================================="
+        echo ""
+        log_info "Migration tested successfully against temporary databases."
+        log_info "No production data was modified."
+        log_info "Temporary databases will be cleaned up automatically."
+    else
+        log_info "Migration completed successfully."
+    fi
     log_info "Log file: $LOG_FILE"
 }
 

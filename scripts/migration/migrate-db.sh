@@ -444,7 +444,10 @@ validate_dump_file() {
 
     # pg_restore -l lists the TOC of a custom-format archive
     # It exits non-zero if the file is not a valid archive
-    if ! pg_restore -l "$dump_file" > /dev/null 2>&1; then
+    # Run inside the db container where pg_restore is available
+    local dump_filename
+    dump_filename=$(basename "$dump_file")
+    if ! dc_exec db pg_restore -l "/tmp/${dump_filename}" > /dev/null 2>&1; then
         log_error "Not a valid pg_dump custom format file: $dump_file ($label)"
         log_error "Ensure the file was created with: pg_dump -Fc"
         return 1
@@ -457,9 +460,10 @@ validate_dump_file() {
 check_pg_version() {
     local dump_file="$1"
 
-    # Extract pg_dump version from the dump TOC header
-    local dump_version
-    dump_version=$(pg_restore -l "$dump_file" 2>/dev/null | grep -i "pg_dump version" | head -1 | sed 's/.*pg_dump version: *//' || true)
+    # Extract pg_dump version from the dump TOC header (run inside db container)
+    local dump_filename dump_version
+    dump_filename=$(basename "$dump_file")
+    dump_version=$(dc_exec db pg_restore -l "/tmp/${dump_filename}" 2>/dev/null | grep -i "pg_dump version" | head -1 | sed 's/.*pg_dump version: *//' || true)
 
     if [[ -z "$dump_version" ]]; then
         log_warn "Could not determine pg_dump version from dump file"
@@ -531,16 +535,18 @@ validate_schema_version() {
         "4a5e3465beb6"  # 2.11 migration 105 - Autogenerate sync (HEAD)
     )
 
-    # Check if alembic_version table exists in the dump TOC
-    if ! pg_restore -l "$dump_file" 2>/dev/null | grep -q "alembic_version"; then
+    # Check if alembic_version table exists in the dump TOC (run inside db container)
+    local dump_filename
+    dump_filename=$(basename "$dump_file")
+    if ! dc_exec db pg_restore -l "/tmp/${dump_filename}" 2>/dev/null | grep -q "alembic_version"; then
         log_warn "No alembic_version table found in dump. Cannot verify schema version. Proceeding anyway."
         return 0
     fi
 
-    # Extract alembic_version data from dump (COPY format)
+    # Extract alembic_version data from dump (COPY format, run inside db container)
     local version_output
-    version_output=$(pg_restore --data-only --table=alembic_version \
-        -f /dev/stdout "$dump_file" 2>/dev/null)
+    version_output=$(dc_exec db pg_restore --data-only --table=alembic_version \
+        -f /dev/stdout "/tmp/${dump_filename}" 2>/dev/null)
 
     # Parse the version_num from COPY format:
     #   COPY public.alembic_version (version_num) FROM stdin;
@@ -622,10 +628,22 @@ check_existing_databases() {
 # Pre-flight Orchestrator
 # =============================================================================
 
+copy_dumps_to_container() {
+    local ckan_filename datastore_filename
+    ckan_filename=$(basename "$CKAN_DUMP")
+    datastore_filename=$(basename "$DATASTORE_DUMP")
+
+    log_detail "Copying dump files into db container..."
+    docker compose -f "$COMPOSE_FILE" cp "$CKAN_DUMP" "db:/tmp/${ckan_filename}" 2>> "$LOG_FILE"
+    docker compose -f "$COMPOSE_FILE" cp "$DATASTORE_DUMP" "db:/tmp/${datastore_filename}" 2>> "$LOG_FILE"
+    log_detail "Dump files copied to db container /tmp/"
+}
+
 run_preflight_checks() {
+    check_services
+    copy_dumps_to_container
     validate_dump_file "$CKAN_DUMP" "CKAN dump"
     validate_dump_file "$DATASTORE_DUMP" "Datastore dump"
-    check_services
     check_pg_version "$CKAN_DUMP"
     validate_schema_version "$CKAN_DUMP"
     check_existing_databases
@@ -681,8 +699,7 @@ step_restore_ckan() {
     local dump_filename
     dump_filename=$(basename "$CKAN_DUMP")
 
-    # Copy dump into db container
-    docker compose -f "$COMPOSE_FILE" cp "$CKAN_DUMP" "db:/tmp/${dump_filename}" 2>> "$LOG_FILE"
+    # Dump already copied to container in copy_dumps_to_container()
 
     # Drop and recreate CKAN database
     dc_exec db dropdb -U "$POSTGRES_USER" --if-exists "$CKAN_DB" 2>> "$LOG_FILE"
@@ -722,8 +739,7 @@ step_restore_datastore() {
     local dump_filename
     dump_filename=$(basename "$DATASTORE_DUMP")
 
-    # Copy dump into db container
-    docker compose -f "$COMPOSE_FILE" cp "$DATASTORE_DUMP" "db:/tmp/${dump_filename}" 2>> "$LOG_FILE"
+    # Dump already copied to container in copy_dumps_to_container()
 
     # Drop and recreate datastore database
     dc_exec db dropdb -U "$POSTGRES_USER" --if-exists "$DATASTORE_DB" 2>> "$LOG_FILE"

@@ -145,6 +145,12 @@ print_recovery_instructions() {
         "Pre-flight checks")
             echo "Fix the reported issue and re-run the migration script."
             ;;
+        "Schema validation")
+            echo "The source dump does not contain the expected CKAN 2.9 schema."
+            echo "Verify the dump file was exported from a CKAN 2.9 instance."
+            echo "If the dump is from a different CKAN version, it cannot be"
+            echo "migrated with this script."
+            ;;
         "Pre-migration backup")
             echo "Backup failed. No data has been modified."
             echo "Check disk space and database connectivity, then re-run."
@@ -256,6 +262,9 @@ usage() {
 Usage: migrate-db.sh [OPTIONS] <ckan_dump> <datastore_dump>
 
 Migrate a CKAN 2.9 database dump into a running CKAN 2.11 environment.
+
+The script automatically validates that the source dump contains a CKAN 2.9
+schema (Alembic revision ccd38ad5fced) before proceeding with migration.
 
 Arguments:
   ckan_dump           Path to the CKAN database dump file (pg_dump custom format)
@@ -461,6 +470,68 @@ check_services() {
     return 0
 }
 
+validate_schema_version() {
+    local dump_file="$1"
+    local expected_revision="ccd38ad5fced"  # CKAN 2.9 HEAD (migration 100)
+
+    # Known post-2.9 revisions that indicate the dump is already partially/fully migrated
+    local post29_revisions=(
+        "d111f446733b"  # 2.10 migration 101 - Add last_active column
+        "ff13667243ed"  # 2.10 migration 102 - Unique email index
+        "353aaf2701f0"  # 2.10 migration 103 - Add plugin_data to package
+        "9f33a0280c51"  # 2.11 migration 104 - Resource view index
+        "4a5e3465beb6"  # 2.11 migration 105 - Autogenerate sync (HEAD)
+    )
+
+    # Check if alembic_version table exists in the dump TOC
+    if ! pg_restore -l "$dump_file" 2>/dev/null | grep -q "alembic_version"; then
+        log_warn "No alembic_version table found in dump. Cannot verify schema version. Proceeding anyway."
+        return 0
+    fi
+
+    # Extract alembic_version data from dump (COPY format)
+    local version_output
+    version_output=$(pg_restore --data-only --table=alembic_version \
+        -f /dev/stdout "$dump_file" 2>/dev/null)
+
+    # Parse the version_num from COPY format:
+    #   COPY public.alembic_version (version_num) FROM stdin;
+    #   ccd38ad5fced
+    #   \.
+    local actual_revision
+    actual_revision=$(echo "$version_output" | grep -A1 "^COPY.*alembic_version" | tail -1 | tr -d '[:space:]')
+
+    if [[ -z "$actual_revision" ]]; then
+        log_warn "Could not extract schema version from dump. Proceeding anyway."
+        return 0
+    fi
+
+    # Check for expected CKAN 2.9 revision
+    if [[ "$actual_revision" == "$expected_revision" ]]; then
+        log_info "Schema version verified: $actual_revision (CKAN 2.9)"
+        return 0
+    fi
+
+    # Check for known post-2.9 revisions (already migrated)
+    for rev in "${post29_revisions[@]}"; do
+        if [[ "$actual_revision" == "$rev" ]]; then
+            log_error "Schema version mismatch!"
+            log_error "  Found:    $actual_revision (post-2.9 revision)"
+            log_error "  Expected: $expected_revision (CKAN 2.9)"
+            log_error "This dump appears to be already partially or fully migrated beyond CKAN 2.9."
+            log_error "Migration 101+ revisions indicate CKAN 2.10 or 2.11 schema changes are present."
+            log_error "This script expects a CKAN 2.9 database dump."
+            return 1
+        fi
+    done
+
+    # Unknown revision -- warn but proceed (may be an older 2.9.x minor release)
+    log_warn "Unrecognized schema revision: $actual_revision"
+    log_warn "Expected $expected_revision (CKAN 2.9 HEAD). This may be an older 2.9.x release."
+    log_warn "Proceeding with migration -- CKAN db upgrade will apply any missing migrations."
+    return 0
+}
+
 check_existing_databases() {
     local existing_dbs=""
 
@@ -508,6 +579,7 @@ run_preflight_checks() {
     validate_dump_file "$DATASTORE_DUMP" "Datastore dump"
     check_services
     check_pg_version "$CKAN_DUMP"
+    validate_schema_version "$CKAN_DUMP"
     check_existing_databases
 }
 

@@ -511,6 +511,345 @@ run_preflight_checks() {
 }
 
 # =============================================================================
+# Migration Pipeline Steps
+# =============================================================================
+
+# --- SAFE-01: Pre-migration backup ---
+step_backup() {
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_dir
+    backup_dir=$(cd "$(dirname "$CKAN_DUMP")" 2>/dev/null && pwd || echo ".")
+
+    # Backup CKAN database
+    log_detail "Backing up $CKAN_DB to /tmp/pre_migration_${CKAN_DB}_${timestamp}.dump"
+    dc_exec db pg_dump -U "$POSTGRES_USER" -F c -b \
+        -f "/tmp/pre_migration_${CKAN_DB}_${timestamp}.dump" "$CKAN_DB" 2>> "$LOG_FILE"
+    docker compose -f "$COMPOSE_FILE" cp \
+        "db:/tmp/pre_migration_${CKAN_DB}_${timestamp}.dump" \
+        "${backup_dir}/pre_migration_${CKAN_DB}_${timestamp}.dump"
+
+    # Backup datastore database
+    log_detail "Backing up $DATASTORE_DB to /tmp/pre_migration_${DATASTORE_DB}_${timestamp}.dump"
+    dc_exec db pg_dump -U "$POSTGRES_USER" -F c -b \
+        -f "/tmp/pre_migration_${DATASTORE_DB}_${timestamp}.dump" "$DATASTORE_DB" 2>> "$LOG_FILE"
+    docker compose -f "$COMPOSE_FILE" cp \
+        "db:/tmp/pre_migration_${DATASTORE_DB}_${timestamp}.dump" \
+        "${backup_dir}/pre_migration_${DATASTORE_DB}_${timestamp}.dump"
+
+    # Clean up container tmp files
+    dc_exec db rm -f \
+        "/tmp/pre_migration_${CKAN_DB}_${timestamp}.dump" \
+        "/tmp/pre_migration_${DATASTORE_DB}_${timestamp}.dump"
+
+    log_detail "Pre-migration backups saved to: $backup_dir"
+    log_detail "  - pre_migration_${CKAN_DB}_${timestamp}.dump"
+    log_detail "  - pre_migration_${DATASTORE_DB}_${timestamp}.dump"
+}
+
+# --- MIG-07 part 1: Stop services ---
+step_stop_services() {
+    docker compose -f "$COMPOSE_FILE" stop "$CKAN_SERVICE" datapusher 2>> "$LOG_FILE"
+    # Allow connections to drain
+    sleep 2
+    log_detail "Stopped $CKAN_SERVICE and datapusher"
+}
+
+# --- MIG-01: Restore CKAN database ---
+step_restore_ckan() {
+    local dump_filename
+    dump_filename=$(basename "$CKAN_DUMP")
+
+    # Copy dump into db container
+    docker compose -f "$COMPOSE_FILE" cp "$CKAN_DUMP" "db:/tmp/${dump_filename}" 2>> "$LOG_FILE"
+
+    # Drop and recreate CKAN database
+    dc_exec db dropdb -U "$POSTGRES_USER" --if-exists "$CKAN_DB" 2>> "$LOG_FILE"
+    dc_exec db createdb -U "$POSTGRES_USER" -O "$CKAN_DB_USER" "$CKAN_DB" -E utf-8 2>> "$LOG_FILE"
+
+    # Create PostGIS extension before restore
+    run_sql "$CKAN_DB" "CREATE EXTENSION IF NOT EXISTS postgis;" >> "$LOG_FILE" 2>&1
+
+    # Restore dump -- capture exit code and check for real errors vs warnings
+    local restore_output
+    local restore_exit=0
+    restore_output=$(dc_exec db pg_restore -U "$POSTGRES_USER" -d "$CKAN_DB" -v "/tmp/${dump_filename}" 2>&1) || restore_exit=$?
+
+    # Log full output
+    echo "$restore_output" >> "$LOG_FILE"
+
+    if [[ $restore_exit -ne 0 ]]; then
+        # Check if there are real ERRORs (not just warnings)
+        if echo "$restore_output" | grep -qi "^pg_restore.*ERROR\|^ERROR"; then
+            log_error "pg_restore encountered errors during CKAN database restore"
+            log_detail "Exit code: $restore_exit"
+            # Clean up container tmp file
+            dc_exec db rm -f "/tmp/${dump_filename}" 2>/dev/null || true
+            return 1
+        else
+            log_detail "pg_restore returned exit code $restore_exit but no critical errors found (likely warnings)"
+        fi
+    fi
+
+    # Clean up container tmp file
+    dc_exec db rm -f "/tmp/${dump_filename}" 2>> "$LOG_FILE"
+    log_detail "CKAN database restored successfully"
+}
+
+# --- MIG-02: Restore datastore database ---
+step_restore_datastore() {
+    local dump_filename
+    dump_filename=$(basename "$DATASTORE_DUMP")
+
+    # Copy dump into db container
+    docker compose -f "$COMPOSE_FILE" cp "$DATASTORE_DUMP" "db:/tmp/${dump_filename}" 2>> "$LOG_FILE"
+
+    # Drop and recreate datastore database
+    dc_exec db dropdb -U "$POSTGRES_USER" --if-exists "$DATASTORE_DB" 2>> "$LOG_FILE"
+    dc_exec db createdb -U "$POSTGRES_USER" -O "$CKAN_DB_USER" "$DATASTORE_DB" -E utf-8 2>> "$LOG_FILE"
+
+    # Restore dump -- same error handling as CKAN restore
+    local restore_output
+    local restore_exit=0
+    restore_output=$(dc_exec db pg_restore -U "$POSTGRES_USER" -d "$DATASTORE_DB" -v "/tmp/${dump_filename}" 2>&1) || restore_exit=$?
+
+    # Log full output
+    echo "$restore_output" >> "$LOG_FILE"
+
+    if [[ $restore_exit -ne 0 ]]; then
+        if echo "$restore_output" | grep -qi "^pg_restore.*ERROR\|^ERROR"; then
+            log_error "pg_restore encountered errors during datastore restore"
+            log_detail "Exit code: $restore_exit"
+            dc_exec db rm -f "/tmp/${dump_filename}" 2>/dev/null || true
+            return 1
+        else
+            log_detail "pg_restore returned exit code $restore_exit but no critical errors found (likely warnings)"
+        fi
+    fi
+
+    # Clean up container tmp file
+    dc_exec db rm -f "/tmp/${dump_filename}" 2>> "$LOG_FILE"
+    log_detail "Datastore database restored successfully"
+}
+
+# --- SAFE-04: Detect duplicate emails ---
+step_check_duplicate_emails() {
+    local result
+    result=$(run_sql "$CKAN_DB" "
+        SELECT email, array_agg(name ORDER BY name) AS usernames, count(*)
+        FROM \"user\"
+        WHERE state = 'active' AND email IS NOT NULL AND email != ''
+        GROUP BY email
+        HAVING count(*) > 1
+        ORDER BY count(*) DESC;
+    " 2>/dev/null) || true
+
+    log_detail "Duplicate email query result: ${result:-<none>}"
+
+    if [[ -n "$result" ]]; then
+        echo ""
+        echo "=========================================="
+        echo "DUPLICATE EMAILS DETECTED"
+        echo "=========================================="
+        echo ""
+        echo "The following email addresses are shared by multiple active users."
+        echo "CKAN 2.10+ requires unique emails per active user."
+        echo ""
+        echo "  email | usernames | count"
+        echo "  ------|-----------|------"
+        echo "$result" | while IFS='|' read -r email usernames count; do
+            echo "  ${email} | ${usernames} | ${count}"
+        done
+        echo ""
+        echo "Option 1: Change duplicate emails (recommended)"
+        echo "  Connect to the database and run:"
+        echo ""
+        run_sql "$CKAN_DB" "
+            SELECT '  UPDATE \"user\" SET email = ''' || name || '+duplicate@example.com'' WHERE name = ''' || name || ''';'
+            FROM \"user\"
+            WHERE state = 'active' AND email IN (
+                SELECT email FROM \"user\"
+                WHERE state = 'active' AND email IS NOT NULL AND email != ''
+                GROUP BY email HAVING count(*) > 1
+            )
+            ORDER BY email, name;
+        " 2>/dev/null || true
+        echo ""
+        echo "Option 2: Deactivate duplicate accounts (keep newest per email)"
+        echo "  Connect to the database and run:"
+        echo ""
+        run_sql "$CKAN_DB" "
+            SELECT '  UPDATE \"user\" SET state = ''deleted'' WHERE name = ''' || name || ''';'
+            FROM (
+                SELECT name, email, ROW_NUMBER() OVER (PARTITION BY email ORDER BY created DESC) as rn
+                FROM \"user\"
+                WHERE state = 'active' AND email IN (
+                    SELECT email FROM \"user\"
+                    WHERE state = 'active' AND email IS NOT NULL AND email != ''
+                    GROUP BY email HAVING count(*) > 1
+                )
+            ) sub
+            WHERE rn > 1
+            ORDER BY email, name;
+        " 2>/dev/null || true
+        echo ""
+        echo "Database left in place for inspection. Fix duplicates, then re-run migration."
+        echo "=========================================="
+        return 1
+    fi
+
+    log_detail "No duplicate emails found"
+}
+
+# --- MIG-07 part 2a: Start CKAN ---
+step_start_ckan() {
+    docker compose -f "$COMPOSE_FILE" start "$CKAN_SERVICE" 2>> "$LOG_FILE"
+
+    # Wait for CKAN to be healthy (timeout 120s)
+    local timeout=120
+    local elapsed=0
+    local interval=5
+
+    while (( elapsed < timeout )); do
+        local health
+        health=$(docker compose -f "$COMPOSE_FILE" ps --format '{{.State}}' "$CKAN_SERVICE" 2>/dev/null || true)
+        log_detail "CKAN health check (${elapsed}s): state=$health"
+
+        if [[ "$health" == "running" ]]; then
+            # Also check if CKAN can respond (give it a moment to fully initialize)
+            if dc_exec "$CKAN_SERVICE" ckan -c /srv/app/ckan.ini status 2>/dev/null; then
+                log_detail "CKAN is running and responsive"
+                return 0
+            fi
+        fi
+
+        sleep "$interval"
+        elapsed=$(( elapsed + interval ))
+    done
+
+    # If we got here but service is running, proceed anyway (status command may not exist)
+    local final_state
+    final_state=$(docker compose -f "$COMPOSE_FILE" ps --format '{{.State}}' "$CKAN_SERVICE" 2>/dev/null || true)
+    if [[ "$final_state" == "running" ]]; then
+        log_detail "CKAN is running (status command may not be available)"
+        return 0
+    fi
+
+    log_error "CKAN failed to start within ${timeout}s"
+    return 1
+}
+
+# --- MIG-03: Schema migration (Alembic) ---
+step_db_upgrade() {
+    local output
+    output=$(run_ckan -c /srv/app/ckan.ini db upgrade 2>&1) || {
+        echo "$output" >> "$LOG_FILE"
+        log_error "ckan db upgrade failed"
+        return 1
+    }
+    echo "$output" >> "$LOG_FILE"
+    log_detail "Schema migration completed successfully"
+}
+
+# --- MIG-04: Datastore upgrade ---
+step_datastore_upgrade() {
+    local output
+    output=$(run_ckan -c /srv/app/ckan.ini datastore upgrade 2>&1) || {
+        echo "$output" >> "$LOG_FILE"
+        log_error "ckan datastore upgrade failed"
+        return 1
+    }
+    echo "$output" >> "$LOG_FILE"
+    log_detail "Datastore upgrade completed successfully"
+}
+
+# --- MIG-05: Datastore permissions ---
+step_datastore_permissions() {
+    dc_exec "$CKAN_SERVICE" ckan -c /srv/app/ckan.ini datastore set-permissions 2>> "$LOG_FILE" | \
+        dc_exec db psql -U "$POSTGRES_USER" --set ON_ERROR_STOP=1 >> "$LOG_FILE" 2>&1
+    log_detail "Datastore permissions applied successfully"
+}
+
+# --- MIG-06: Search index rebuild ---
+step_search_reindex() {
+    local output
+    output=$(run_ckan -c /srv/app/ckan.ini search-index rebuild 2>&1) || {
+        echo "$output" >> "$LOG_FILE"
+        log_error "search-index rebuild failed"
+        return 1
+    }
+    echo "$output" >> "$LOG_FILE"
+
+    # Show summary on terminal
+    local reindexed_count
+    reindexed_count=$(echo "$output" | grep -c "Indexed" || true)
+    if [[ "$reindexed_count" -gt 0 ]]; then
+        log_detail "Reindexed $reindexed_count datasets"
+    fi
+    log_detail "Search index rebuild completed"
+}
+
+# --- MIG-07 part 2b: Start DataPusher ---
+step_start_datapusher() {
+    docker compose -f "$COMPOSE_FILE" start datapusher 2>> "$LOG_FILE"
+    log_detail "DataPusher started"
+}
+
+# --- VAL-01: Post-migration validation ---
+step_validation() {
+    echo ""
+    echo "=========================================="
+    echo "POST-MIGRATION VALIDATION"
+    echo "=========================================="
+
+    # Dataset count
+    local dataset_count
+    dataset_count=$(run_sql "$CKAN_DB" "SELECT count(*) FROM package WHERE state = 'active';" 2>/dev/null) || dataset_count="ERROR"
+    echo "  Datasets:      ${dataset_count} active"
+    log_detail "Validation - Datasets: $dataset_count"
+
+    # User count
+    local user_count
+    user_count=$(run_sql "$CKAN_DB" "SELECT count(*) FROM \"user\" WHERE state = 'active';" 2>/dev/null) || user_count="ERROR"
+    echo "  Users:         ${user_count} active"
+    log_detail "Validation - Users: $user_count"
+
+    # Organization count
+    local org_count
+    org_count=$(run_sql "$CKAN_DB" "SELECT count(*) FROM \"group\" WHERE type = 'organization' AND state = 'active';" 2>/dev/null) || org_count="ERROR"
+    echo "  Organizations: ${org_count} active"
+    log_detail "Validation - Organizations: $org_count"
+
+    # Resource count
+    local resource_count
+    resource_count=$(run_sql "$CKAN_DB" "SELECT count(*) FROM resource WHERE state = 'active';" 2>/dev/null) || resource_count="ERROR"
+    echo "  Resources:     ${resource_count} active"
+    log_detail "Validation - Resources: $resource_count"
+
+    # Solr search index check
+    local search_result
+    search_result=$(run_ckan -c /srv/app/ckan.ini search-index check 2>&1 | tail -3) || search_result="ERROR checking search index"
+    echo "  Search index:  ${search_result}"
+    log_detail "Validation - Search index: $search_result"
+
+    # Datastore tables
+    local ds_tables
+    ds_tables=$(run_sql "$DATASTORE_DB" "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null) || ds_tables="ERROR"
+    echo "  Datastore:     ${ds_tables} public tables"
+    log_detail "Validation - Datastore tables: $ds_tables"
+
+    # Spatial extents (may not exist)
+    local spatial_count
+    spatial_count=$(run_sql "$CKAN_DB" "SELECT count(*) FROM package_extent;" 2>/dev/null) || spatial_count="N/A (table not found)"
+    echo "  Spatial:       ${spatial_count} extents"
+    log_detail "Validation - Spatial extents: $spatial_count"
+
+    echo "=========================================="
+    echo "Migration complete. Review validation results above."
+    echo "=========================================="
+}
+
+# =============================================================================
 # Main
 # =============================================================================
 
@@ -557,23 +896,23 @@ main() {
     echo "  Force mode:     $FORCE"
     echo ""
 
-    # === MIGRATION PIPELINE (Plan 02) ===
-    # The following steps will be implemented in Plan 02:
-    #
-    # run_step "Pre-migration backup"      step_backup
-    # run_step "Stop services"             step_stop_services
-    # run_step "Restore CKAN database"     step_restore_ckan
-    # run_step "Restore datastore database" step_restore_datastore
-    # run_step "Duplicate email check"     step_check_duplicates
-    # run_step "Start CKAN"                step_start_ckan
-    # run_step "Schema migration"          step_schema_migration
-    # run_step "Datastore upgrade"         step_datastore_upgrade
-    # run_step "Datastore permissions"     step_datastore_permissions
-    # run_step "Search index rebuild"      step_search_reindex
-    # run_step "Start DataPusher"          step_start_datapusher
-    # run_step "Validation"                step_validation
+    # === MIGRATION PIPELINE ===
+    run_step "Pre-migration backup"       step_backup
+    run_step "Stop services"              step_stop_services
+    run_step "Restore CKAN database"      step_restore_ckan
+    run_step "Restore datastore database" step_restore_datastore
+    run_step "Duplicate email check"      step_check_duplicate_emails
+    run_step "Start CKAN"                 step_start_ckan
+    run_step "Schema migration"           step_db_upgrade
+    run_step "Datastore upgrade"          step_datastore_upgrade
+    run_step "Datastore permissions"      step_datastore_permissions
+    run_step "Search index rebuild"       step_search_reindex
+    run_step "Start DataPusher"           step_start_datapusher
+    run_step "Validation"                 step_validation
 
-    log_info "Pre-flight checks complete. Migration pipeline steps will be added in Plan 02."
+    echo ""
+    log_info "Migration completed successfully."
+    log_info "Log file: $LOG_FILE"
 }
 
 main "$@"

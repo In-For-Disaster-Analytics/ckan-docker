@@ -19,6 +19,7 @@ STEP_START_TIME=0
 LOG_FILE=""
 COMPOSE_FILE="docker-compose.dev.yml"
 CKAN_SERVICE=""
+CKAN_INI="/srv/app/ckan.ini"
 FORCE=false
 
 # Database defaults (overridden by env files)
@@ -717,7 +718,7 @@ step_start_ckan() {
 
         if [[ "$health" == "running" ]]; then
             # Also check if CKAN can respond (give it a moment to fully initialize)
-            if dc_exec "$CKAN_SERVICE" ckan -c /srv/app/ckan.ini status 2>/dev/null; then
+            if dc_exec "$CKAN_SERVICE" ckan -c "$CKAN_INI" status 2>/dev/null; then
                 log_detail "CKAN is running and responsive"
                 return 0
             fi
@@ -742,7 +743,7 @@ step_start_ckan() {
 # --- MIG-03: Schema migration (Alembic) ---
 step_db_upgrade() {
     local output
-    output=$(run_ckan -c /srv/app/ckan.ini db upgrade 2>&1) || {
+    output=$(run_ckan -c "$CKAN_INI" db upgrade 2>&1) || {
         echo "$output" >> "$LOG_FILE"
         log_error "ckan db upgrade failed"
         return 1
@@ -754,7 +755,7 @@ step_db_upgrade() {
 # --- MIG-04: Datastore upgrade ---
 step_datastore_upgrade() {
     local output
-    output=$(run_ckan -c /srv/app/ckan.ini datastore upgrade 2>&1) || {
+    output=$(run_ckan -c "$CKAN_INI" datastore upgrade 2>&1) || {
         echo "$output" >> "$LOG_FILE"
         log_error "ckan datastore upgrade failed"
         return 1
@@ -765,7 +766,7 @@ step_datastore_upgrade() {
 
 # --- MIG-05: Datastore permissions ---
 step_datastore_permissions() {
-    dc_exec "$CKAN_SERVICE" ckan -c /srv/app/ckan.ini datastore set-permissions 2>> "$LOG_FILE" | \
+    dc_exec "$CKAN_SERVICE" ckan -c "$CKAN_INI" datastore set-permissions 2>> "$LOG_FILE" | \
         dc_exec db psql -U "$POSTGRES_USER" --set ON_ERROR_STOP=1 >> "$LOG_FILE" 2>&1
     log_detail "Datastore permissions applied successfully"
 }
@@ -773,7 +774,7 @@ step_datastore_permissions() {
 # --- MIG-06: Search index rebuild ---
 step_search_reindex() {
     local output
-    output=$(run_ckan -c /srv/app/ckan.ini search-index rebuild 2>&1) || {
+    output=$(run_ckan -c "$CKAN_INI" search-index rebuild 2>&1) || {
         echo "$output" >> "$LOG_FILE"
         log_error "search-index rebuild failed"
         return 1
@@ -828,7 +829,7 @@ step_validation() {
 
     # Solr search index check
     local search_result
-    search_result=$(run_ckan -c /srv/app/ckan.ini search-index check 2>&1 | tail -3) || search_result="ERROR checking search index"
+    search_result=$(run_ckan -c "$CKAN_INI" search-index check 2>&1 | tail -3) || search_result="ERROR checking search index"
     echo "  Search index:  ${search_result}"
     log_detail "Validation - Search index: $search_result"
 

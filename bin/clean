@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "Stopping all CKAN containers..."
+docker stop $(docker ps -q -f name=ckan) 2>/dev/null || true
+
+echo "Removing all CKAN containers..."
+docker rm $(docker ps -aq -f name=ckan) 2>/dev/null || true
+
+echo "Removing all CKAN volumes..."
+docker volume rm $(docker volume ls -q -f name=ckan) 2>/dev/null || true
+
+echo "Done."

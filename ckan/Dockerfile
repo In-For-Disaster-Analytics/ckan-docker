@@ -1,10 +1,9 @@
-FROM ckan/ckan-base:2.9-py3.9
+FROM ckan/ckan-base:2.11
 # Install any extensions needed by your CKAN instance
 # See Dockerfile.dev for more details and examples
 
 USER root
-RUN echo 'deb http://deb.debian.org/debian bookworm 12.9 main' > /etc/apt/sources.list.d/bookworm.list && \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install -y python3-dev libxml2-dev libxslt1-dev libgeos-c1v5 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -26,7 +25,7 @@ RUN pip install ckanext-geoview
 ADD ckan/requirements/ckanext-spatial.txt /tmp/
 RUN pip3 install -r /tmp/ckanext-spatial.txt
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-spatial.git#egg=ckanext-spatial"
-RUN pip3 install -e 'git+https://github.com/In-For-Disaster-Analytics/ckanext-oauth2.git@0.9.2#egg=ckanext-oauth2'
+RUN pip3 install -e 'git+https://github.com/In-For-Disaster-Analytics/ckanext-oauth2.git@v1.0.0#egg=ckanext-oauth2'
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-showcase"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"
@@ -43,13 +42,7 @@ RUN cd ${APP_DIR}/src/ckanext-tapisfilestore && python3 setup.py develop --user
 # Potree Extension
 COPY --chown=ckan:ckan-sys src/ckanext-potree ${APP_DIR}/src/ckanext-potree
 RUN cd ${APP_DIR}/src/ckanext-potree && python3 setup.py develop --user
-# Copy Potree assets from the build stage
 RUN pip3 install -r ${APP_DIR}/src/ckanext-potree/requirements.txt
-RUN wget https://github.com/mosoriob/potree/releases/download/test-v0.0.4/potree-dist.tar.gz && \
-    tar -xzf potree-dist.tar.gz
-RUN mkdir -p ${APP_DIR}/src/ckanext-potree/ckanext/potree/public/potree/build
-RUN cp -r potree ${APP_DIR}/src/ckanext-potree/ckanext/potree/public/potree/build/potree
-RUN cp -r libs   ${APP_DIR}/src/ckanext-potree/ckanext/potree/public/potree
 
 # Copy custom initialization scripts
 #COPY ckan/docker-entrypoint.d/* /docker-entrypoint.d/

@@ -20,21 +20,15 @@
       <div class="col-md-4 attribution">
         {% block footer_lang %}
           {% snippet "snippets/language_selector.html" %}
-        {% endblock %}        
+        {% endblock %}
         {% block footer_attribution %}
           {% set api_url = 'http://docs.ckan.org/en/{0}/api/'.format(g.ckan_doc_version) %}
-          <p>{% trans %}Powered by <a href="http://www.ckan.org/">CKAN Association</a> 
+          <p>{% trans %}Powered by <a href="http://www.ckan.org/">CKAN Association</a>
             <!-- [<a href="{{ api_url }}">API Documentation</a>] -->
-            {% endtrans %}</p>              
+            {% endtrans %}</p>
         {% endblock %}
       </div>
     </div>
     {% endblock %}
   </div>
-
-  {% block footer_debug %}
-    {% if g.debug %}
-      {% include 'snippets/debug.html' %}
-    {% endif %}
-  {% endblock %}
 </footer>

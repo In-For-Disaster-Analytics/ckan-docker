@@ -6,11 +6,12 @@ volumes:
       device: /data/ckan
   pg_data:
   solr_data:
-  pip_cache:
-  site_packages:
+  pip_cache_py310:
+  site_packages_py310:
 
 services:
   ckan:
+    platform: linux/amd64
     logging:
       options:
         max-size: 100m
@@ -35,8 +36,8 @@ services:
         condition: service_healthy
     volumes:
       - /data/ckan:/var/lib/ckan
-      - pip_cache:/root/.cache/pip
-      - site_packages:/usr/lib/python3.10/site-packages
+      - pip_cache_py310:/root/.cache/pip
+      - site_packages_py310:/usr/lib/python3.10/site-packages
     restart: unless-stopped
     ports:
       - '5000:5000'
@@ -94,7 +95,7 @@ services:
         max-size: 100m
     networks:
       - solrnet
-    image: ckan/ckan-solr:2.9-solr9-spatial
+    image: ckan/ckan-solr:2.11-solr9-spatial
     ports:
       - 8983:8983
     volumes:

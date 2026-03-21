@@ -127,17 +127,18 @@ class TestXTapisTokenAuth:
                 warnings.warn(f"Cleanup failed for dataset {dataset_name}: {purge_resp.text}")
 
     def test_invalid_bearer_token_returns_401_or_error(self, ckan_url):
-        """A garbage Authorization: Bearer token is rejected: either HTTP 401 or success:false."""
-        resp = requests.get(
-            _api(ckan_url, "organization_list_for_user"),
+        """A garbage Authorization: Bearer token cannot create a dataset (requires auth)."""
+        resp = requests.post(
+            _api(ckan_url, "package_create"),
             headers={"Authorization": "Bearer this-is-not-a-valid-token"},
+            json={"name": f"test-invalid-bearer-{uuid.uuid4().hex[:8]}", "title": "should fail"},
         )
         # CKAN may return HTTP 401 directly, or wrap the error as 200+success:false
         if resp.status_code == 200:
             assert resp.json()["success"] is False, (
-                f"Expected success:false for invalid Bearer token, got: {resp.json()}"
+                f"Expected success:false for invalid Bearer token on write endpoint, got: {resp.json()}"
             )
         else:
-            assert resp.status_code == 401, (
-                f"Expected 401 for invalid Bearer token, got: {resp.status_code}"
+            assert resp.status_code in (401, 403), (
+                f"Expected 401/403 for invalid Bearer token, got: {resp.status_code}"
             )

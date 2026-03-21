@@ -1,3 +1,4 @@
+docs/superpowers
 migration_backups/
 .planning
 .venv/
@@ -7,6 +8,7 @@ migration_backups/
 .env.secrets
 .env.dev.secrets
 .env.*.secrets
+.env.integration
 
 # Development files
 lissa-notes.md

@@ -94,3 +94,50 @@ class TestXTapisTokenAuth:
             assert resp.status_code == 401, (
                 f"Expected 401 for invalid token, got: {resp.status_code}"
             )
+
+    def test_bearer_token_package_create(self, bearer_session, ckan_url):
+        """Authorization: Bearer header allows creating a dataset; dataset is purged on teardown."""
+        org_name = os.environ.get("TEST_ORG_NAME")
+        if not org_name:
+            pytest.skip("TEST_ORG_NAME not set")
+
+        dataset_name = f"test-integration-bearer-{uuid.uuid4().hex[:8]}"
+
+        try:
+            resp = bearer_session.post(
+                _api(ckan_url, "package_create"),
+                json={
+                    "name": dataset_name,
+                    "owner_org": org_name,
+                    "title": "Integration test dataset",
+                },
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["success"] is True
+            assert data["result"]["name"] == dataset_name
+        finally:
+            # Soft-delete the dataset. UUID naming ensures no name conflicts on reruns.
+            purge_resp = bearer_session.post(
+                _api(ckan_url, "package_delete"),
+                json={"id": dataset_name},
+            )
+            if not purge_resp.ok or not purge_resp.json().get("success"):
+                import warnings
+                warnings.warn(f"Cleanup failed for dataset {dataset_name}: {purge_resp.text}")
+
+    def test_invalid_bearer_token_returns_401_or_error(self, ckan_url):
+        """A garbage Authorization: Bearer token is rejected: either HTTP 401 or success:false."""
+        resp = requests.get(
+            _api(ckan_url, "organization_list_for_user"),
+            headers={"Authorization": "Bearer this-is-not-a-valid-token"},
+        )
+        # CKAN may return HTTP 401 directly, or wrap the error as 200+success:false
+        if resp.status_code == 200:
+            assert resp.json()["success"] is False, (
+                f"Expected success:false for invalid Bearer token, got: {resp.json()}"
+            )
+        else:
+            assert resp.status_code == 401, (
+                f"Expected 401 for invalid Bearer token, got: {resp.status_code}"
+            )

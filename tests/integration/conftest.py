@@ -55,3 +55,11 @@ def authed_session(jwt_token):
     session.headers.update({"X-Tapis-Token": jwt_token})
     yield session
     session.close()
+
+
+@pytest.fixture(scope="session")
+def bearer_session(jwt_token):
+    session = requests.Session()
+    session.headers.update({"Authorization": f"Bearer {jwt_token}"})
+    yield session
+    session.close()

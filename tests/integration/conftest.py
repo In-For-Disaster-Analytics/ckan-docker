@@ -1,6 +1,19 @@
 import os
+from pathlib import Path
 import pytest
 import requests
+
+# Auto-load .env.integration from repo root if it exists.
+# Variables already in the environment take precedence (os.environ.setdefault).
+_env_file = Path(__file__).parent.parent.parent / ".env.integration"
+if _env_file.exists():
+    with open(_env_file) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#"):
+                _key, _, _val = _line.partition("=")
+                _key = _key.removeprefix("export").strip()
+                os.environ.setdefault(_key, _val.strip())
 
 
 @pytest.fixture(scope="session")

@@ -3,7 +3,7 @@ import uuid
 import pytest
 import requests
 
-# Run only with: pytest tests/integration/ -v
+# Run only with: pytest -p no:ckan -p no:ckan_fixtures tests/integration/ -v
 # Requires: CKAN_SITE_URL, TACC_USERNAME, TACC_PASSWORD, TEST_ORG_NAME env vars
 # These tests hit the live production server and must NOT run in CI without credentials.
 

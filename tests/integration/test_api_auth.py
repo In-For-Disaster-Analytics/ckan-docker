@@ -3,6 +3,10 @@ import uuid
 import pytest
 import requests
 
+# Run only with: pytest tests/integration/ -v
+# Requires: CKAN_SITE_URL, TACC_USERNAME, TACC_PASSWORD, TEST_ORG_NAME env vars
+# These tests hit the live production server and must NOT run in CI without credentials.
+
 
 def _api(ckan_url, action):
     return f"{ckan_url}/api/3/action/{action}"
@@ -19,6 +23,7 @@ class TestXTapisTokenAuth:
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
+        assert len(data["result"]) > 0, "Authenticated user should belong to at least one org"
 
     def test_bearer_token_organization_list(self, jwt_token, ckan_url):
         """Authorization: Bearer header authenticates user and returns their orgs."""
@@ -30,6 +35,7 @@ class TestXTapisTokenAuth:
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
+        assert len(data["result"]) > 0, "Authenticated user should belong to at least one org"
 
     def test_x_tapis_token_package_create(self, authed_session, ckan_url):
         """X-Tapis-Token header allows creating a dataset; dataset is purged on teardown."""
@@ -53,11 +59,14 @@ class TestXTapisTokenAuth:
             assert data["success"] is True
             assert data["result"]["name"] == dataset_name
         finally:
-            # Always purge, even if create failed partially
-            authed_session.post(
-                _api(ckan_url, "dataset_purge"),
+            # Soft-delete the dataset. UUID naming ensures no name conflicts on reruns.
+            purge_resp = authed_session.post(
+                _api(ckan_url, "package_delete"),
                 json={"id": dataset_name},
             )
+            if not purge_resp.ok or not purge_resp.json().get("success"):
+                import warnings
+                warnings.warn(f"Cleanup failed for dataset {dataset_name}: {purge_resp.text}")
 
     def test_no_token_organization_list_is_anonymous(self, ckan_url):
         """Without a token, organization_list_for_user returns 200 with empty list."""

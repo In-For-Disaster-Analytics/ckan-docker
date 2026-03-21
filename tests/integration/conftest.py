@@ -40,4 +40,5 @@ def jwt_token():
 def authed_session(jwt_token):
     session = requests.Session()
     session.headers.update({"X-Tapis-Token": jwt_token})
-    return session
+    yield session
+    session.close()

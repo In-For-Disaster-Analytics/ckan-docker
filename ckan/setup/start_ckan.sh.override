@@ -44,6 +44,7 @@ UWSGI_OPTS="--plugins http,python \
             --master --enable-threads \
             --lazy-apps \
             -p 2 -L -b 32768 --vacuum \
+            --post-buffering 1 \
             --harakiri $UWSGI_HARAKIRI"
 
 if [ $? -eq 0 ]

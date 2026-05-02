@@ -10,15 +10,15 @@ RUN apt-get update && \
 
 RUN chown -R ckan: /srv/app
 
-RUN groupmod -g 826671 ckan-sys && echo "Modified group ID for ckan-sys to 826671"
+RUN groupmod -g 820466 ckan-sys && echo "Modified group ID for ckan-sys to 820466"
 RUN usermod -u 863242 ckan && echo "Modified user ID for ckan to 863242"
 
-RUN find /var/lib/ckan -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find ${APP_DIR} -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find /docker-entrypoint.d -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find /usr/local -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find ${CKAN_STORAGE_PATH} -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find /srv/app -gid 502 ! -type l -exec chgrp 826671 {} \;
+RUN find /var/lib/ckan -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find ${APP_DIR} -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find /docker-entrypoint.d -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find /usr/local -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find ${CKAN_STORAGE_PATH} -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find /srv/app -gid 502 ! -type l -exec chgrp 820466 {} \;
 
 RUN find /var/lib/ckan -uid 503 ! -type l -exec chown 863242 {} \;
 RUN find ${APP_DIR} -uid 503 ! -type l -exec chown 863242 {} \;

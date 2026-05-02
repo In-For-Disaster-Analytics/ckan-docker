@@ -45,6 +45,10 @@ UWSGI_OPTS="--plugins http,python \
             --lazy-apps \
             -p 2 -L -b 32768 --vacuum \
             --post-buffering 1 \
+            --reload-on-rss 768 \
+            --max-requests 500 \
+            --max-requests-delta 100 \
+            --worker-reload-mercy 30 \
             --harakiri $UWSGI_HARAKIRI"
 
 if [ $? -eq 0 ]

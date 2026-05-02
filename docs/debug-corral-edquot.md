@@ -124,10 +124,42 @@ services:
       - site_packages_py310:/usr/lib/python3.10/site-packages
 ```
 
+Commit: `433a5a7 fix(docker): narrow NFS bind to resources and storage subdirs`
+
 An earlier attempt to overlay a named volume at `/var/lib/ckan/webassets`
 on top of the wide bind mount was abandoned because runc could not
 traverse the NFS-bound parent during container init (root-squash denied
 the directory lookup).
+
+### 4. Squashed-root traversal bits on NFS parents
+
+After narrowing the bind, container init failed with:
+
+```
+mkdir /data/ckan/resources: permission denied
+```
+
+The Docker daemon stats the bind source as root. NFS root-squash maps
+that to anonymous, which had no `o+x` on the project tree (mode
+`drwxrwx---`). Fix as the directory owner (mosorio) — grant traversal
+only, no read/write to others:
+
+```bash
+chmod o+x /corral/utexas/BCS24011/ckan
+chmod o+x /corral/utexas/BCS24011/ckan/resources
+chmod o+x /corral/utexas/BCS24011/ckan/storage
+```
+
+### 5. procps installed for runtime debugging
+
+Default `ckan/ckan-base:2.11` lacks `ps`. Added `procps` to the
+Dockerfile apt step so worker uid/gid can be inspected at runtime:
+
+```bash
+docker compose exec ckan ps -eo pid,user,uid,gid,cmd | grep -i uwsgi
+```
+
+Commit: `6bb66af chore(docker): install procps for ps/top in ckan image`
 
 ## Why The Bug Surfaced Now
 
@@ -141,13 +173,47 @@ mismatch had been masked by an earlier failure.
 
 ```bash
 docker compose exec ckan id                                 # uid=863242(ckan)
-docker compose exec ckan touch /var/lib/ckan/resources/.qok && echo OK
-docker compose exec ckan touch /var/lib/ckan/webassets/.qok  && echo OK
+docker compose exec ckan ps -eo pid,user,uid,gid,cmd | grep uwsgi
+docker compose exec ckan touch /var/lib/ckan/resources/.qok && echo RES_OK
+docker compose exec ckan touch /var/lib/ckan/storage/.qok  && echo STO_OK
+docker compose exec ckan touch /var/lib/ckan/webassets/.qok && echo WEB_OK
+ls -la /corral/utexas/BCS24011/ckan/resources/.qok          # verify uid:gid on disk
 docker compose logs --tail=200 ckan | grep -iE 'quota|errno' || echo CLEAN
 ```
 
 Then upload a real resource through the UI to confirm the end-to-end
 flow.
+
+## Open Issues
+
+A regression resurfaced after applying steps 1-5: `os.makedirs` still
+returns `EDQUOT` on a deeper path:
+
+```
+OSError: [Errno 122] Disk quota exceeded: '/var/lib/ckan/resources/ced/37a'
+```
+
+Container `id` confirms `uid=863242(ckan) gid=826671(ckan-sys)`, so
+the failing process is running as the right uid. Working hypotheses:
+
+- A pre-existing intermediate directory (e.g. `resources/ced`) was
+  created before the rechown and still carries the wrong gid (likely
+  mosorio's primary group `PT2050-DataX` rather than `826671`). New
+  files inside inherit that gid because no setgid bit was set during
+  cp+swap, so Corral bills against an unallocated project.
+- A worker process (uwsgi forked, supervisor-managed, datapusher
+  callback) runs with a different uid/gid than the main container
+  process.
+
+Diagnostic commands queued:
+
+```bash
+docker compose exec ckan ps -efH
+docker compose exec ckan touch /var/lib/ckan/resources/.utest && \
+  ls -la /corral/utexas/BCS24011/ckan/resources/.utest
+ls -ld /corral/utexas/BCS24011/ckan/resources/ced
+find /corral/utexas/BCS24011/ckan/resources -maxdepth 3 ! -group G-826671 2>/dev/null | head
+```
 
 ## Follow-Up / Tech Debt
 
@@ -160,3 +226,5 @@ flow.
   inherit the correct group automatically.
 - Audit any remaining 503-owned directories under the Corral tree:
   `find /corral/utexas/BCS24011/ckan -maxdepth 2 -uid 503`.
+- Confirm uwsgi config drops privileges to `uid = ckan` rather than
+  running workers as root.

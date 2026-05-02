@@ -4,6 +4,7 @@ volumes:
       type: none
       o: bind
       device: /data/ckan
+  ckan_webassets:
   pg_data:
   solr_data:
   pip_cache_py310:
@@ -36,6 +37,7 @@ services:
         condition: service_healthy
     volumes:
       - /data/ckan:/var/lib/ckan
+      - ckan_webassets:/var/lib/ckan/webassets
       - pip_cache_py310:/root/.cache/pip
       - site_packages_py310:/usr/lib/python3.10/site-packages
     restart: unless-stopped

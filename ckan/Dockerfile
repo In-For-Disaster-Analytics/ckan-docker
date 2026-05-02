@@ -4,7 +4,7 @@ FROM ckan/ckan-base:2.11
 
 USER root
 RUN apt-get update && \
-    apt-get install -y python3-dev libxml2-dev libxslt1-dev libgeos-c1v5 \
+    apt-get install -y python3-dev libxml2-dev libxslt1-dev libgeos-c1v5 procps \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

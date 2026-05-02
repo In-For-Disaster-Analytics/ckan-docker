@@ -1,10 +1,4 @@
 volumes:
-  ckan_storage:
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/ckan
-  ckan_webassets:
   pg_data:
   solr_data:
   pip_cache_py310:
@@ -36,8 +30,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - /data/ckan:/var/lib/ckan
-      - ckan_webassets:/var/lib/ckan/webassets
+      - /data/ckan/resources:/var/lib/ckan/resources
+      - /data/ckan/storage:/var/lib/ckan/storage
       - pip_cache_py310:/root/.cache/pip
       - site_packages_py310:/usr/lib/python3.10/site-packages
     restart: unless-stopped

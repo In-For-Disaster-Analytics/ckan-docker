@@ -4,20 +4,28 @@ FROM ckan/ckan-base:2.11
 
 USER root
 RUN apt-get update && \
-    apt-get install -y python3-dev libxml2-dev libxslt1-dev libgeos-c1v5 \
+    apt-get install -y python3-dev libxml2-dev libxslt1-dev libgeos-c1v5 procps \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 RUN chown -R ckan: /srv/app
 
-RUN groupmod -g 826671 ckan-sys && echo "Modified group ID for ckan-sys to 826671"
+RUN groupmod -g 820466 ckan-sys && echo "Modified group ID for ckan-sys to 820466"
+RUN usermod -u 863242 ckan && echo "Modified user ID for ckan to 863242"
 
-RUN find /var/lib/ckan -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find ${APP_DIR} -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find /docker-entrypoint.d -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find /usr/local -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find ${CKAN_STORAGE_PATH} -gid 502 ! -type l -exec chgrp 826671 {} \;
-RUN find /srv/app -gid 502 ! -type l -exec chgrp 826671 {} \;
+RUN find /var/lib/ckan -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find ${APP_DIR} -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find /docker-entrypoint.d -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find /usr/local -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find ${CKAN_STORAGE_PATH} -gid 502 ! -type l -exec chgrp 820466 {} \;
+RUN find /srv/app -gid 502 ! -type l -exec chgrp 820466 {} \;
+
+RUN find /var/lib/ckan -uid 503 ! -type l -exec chown 863242 {} \;
+RUN find ${APP_DIR} -uid 503 ! -type l -exec chown 863242 {} \;
+RUN find /docker-entrypoint.d -uid 503 ! -type l -exec chown 863242 {} \;
+RUN find /usr/local -uid 503 ! -type l -exec chown 863242 {} \;
+RUN find ${CKAN_STORAGE_PATH} -uid 503 ! -type l -exec chown 863242 {} \;
+RUN find /srv/app -uid 503 ! -type l -exec chown 863242 {} \;
 
 USER ckan
 
@@ -25,7 +33,7 @@ RUN pip install ckanext-geoview
 ADD ckan/requirements/ckanext-spatial.txt /tmp/
 RUN pip3 install -r /tmp/ckanext-spatial.txt
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-spatial.git#egg=ckanext-spatial"
-RUN pip3 install -e 'git+https://github.com/In-For-Disaster-Analytics/ckanext-oauth2.git@v1.2.2 egg=ckanext-oauth2'
+RUN pip3 install -e 'git+https://github.com/In-For-Disaster-Analytics/ckanext-oauth2.git@v1.2.2#egg=ckanext-oauth2'
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-showcase"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"

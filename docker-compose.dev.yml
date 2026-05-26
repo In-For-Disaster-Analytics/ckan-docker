@@ -3,9 +3,8 @@ volumes:
   pg_data_dev:
   solr_data_dev:
   pip_cache_dev_py310:
-  site_packages_dev_py310:
-  local_bin_dev_py310:
-  home_dir_dev:
+  site_packages_dev_py310_ckan211:
+  local_bin_dev_py310_ckan211:
 
 services:
   change-vol-ownership:
@@ -40,15 +39,14 @@ services:
       - solr
       - redis
     ports:
-      - "0.0.0.0:5000:5000"
+      - "0.0.0.0:5001:5000"
     volumes:
       - ckan_storage_dev:/var/lib/ckan
       - ./src:/srv/app/src_extensions
       - ./src/ckanext-oauth2:/srv/app/src_extensions/ckanext-oauth2
       - pip_cache_dev_py310:/root/.cache/pip
-      - site_packages_dev_py310:/usr/local/lib/python3.10/site-packages
-      - local_bin_dev_py310:/usr/local/bin
-      - home_dir_dev:/srv/app/
+      - site_packages_dev_py310_ckan211:/usr/local/lib/python3.10/site-packages
+      - local_bin_dev_py310_ckan211:/usr/local/bin
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:5000"]

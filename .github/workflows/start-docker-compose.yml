@@ -25,6 +25,9 @@ jobs:
       - name: Build Docker images
         run: docker compose -f docker-compose.dev.yml build
 
+      - name: Install local CKAN extensions
+        run: ./bin/install_src
+
       - name: Start Docker containers
         run: docker compose -f docker-compose.dev.yml up -d
 
@@ -105,7 +108,7 @@ jobs:
           docker compose -f docker-compose.dev.yml ps
 
           echo "==== Container Logs ===="
-          for service in ckan db solr redis datapusher; do
+          for service in ckan-dev db solr redis datapusher; do
             echo "==== $service logs ===="
             docker compose -f docker-compose.dev.yml logs $service
           done

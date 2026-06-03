@@ -8,6 +8,7 @@ from markupsafe import Markup, escape
 from markdown import markdown
 import re
 
+
 class TaccThemePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.ITemplateHelpers)
@@ -57,6 +58,3 @@ class TaccThemePlugin(plugins.SingletonPlugin):
         RE_MD_HTML_TAGS = re.compile('<[^><]*>')
         plain = RE_MD_HTML_TAGS.sub('', markdown(text))
         return plain.splitlines()
-
-
-

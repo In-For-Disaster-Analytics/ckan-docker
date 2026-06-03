@@ -37,6 +37,7 @@ RUN pip3 install -e 'git+https://github.com/In-For-Disaster-Analytics/ckanext-oa
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-showcase"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"
+RUN pip3 install -e "git+https://github.com/mjanez/ckanext-openapi.git@v1.0.0#egg=ckanext-openapi"
 RUN pip3 install ckanext-pdfview
 # TACC Theme
 COPY --chown=ckan:ckan-sys src/ckanext-tacc_theme ${APP_DIR}/src/ckanext-tacc_theme

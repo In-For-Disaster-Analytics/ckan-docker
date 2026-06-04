@@ -56,6 +56,12 @@ ssh root@129.114.97.55
 # Navigate to the deployment directory
 cd /srv/ckan-tacc-images
 
+# Use the webassets/nginx fix branch, not main
+BRANCH=117-ckan-html-pages-fail-when-webassets-cache-is-mounted-on-corralnfs-without-ckan-write-permissions
+git fetch origin
+git switch "$BRANCH" || git switch --track "origin/$BRANCH"
+git pull --ff-only
+
 # Rebuild and restart
 docker compose build
 docker compose up -d

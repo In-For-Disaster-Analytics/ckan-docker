@@ -8,7 +8,8 @@ set -euo pipefail
 
 MOUNT_POINT="/corral/utexas/BCS24011/ckan"
 DATA_SYMLINK="/data/ckan"
-EXPECTED_GID=826671
+EXPECTED_UID=863242
+EXPECTED_GID=820466
 FAILURES=0
 
 echo "=== NFS Mount Verification ==="
@@ -56,26 +57,33 @@ echo ""
 
 # 3. Host write check
 echo "--- Host Write Access ---"
-if touch "${DATA_SYMLINK}/.nfs-write-test" 2>/dev/null; then
-    rm -f "${DATA_SYMLINK}/.nfs-write-test"
-    echo "[OK] Host can write to ${DATA_SYMLINK}"
-else
-    echo "[FAIL] Host cannot write to ${DATA_SYMLINK}"
-    echo "       Fix: Check group permissions on the NFS mount"
-    FAILURES=$((FAILURES + 1))
-fi
+for dir in resources storage; do
+    if [[ -d "${DATA_SYMLINK}/${dir}" ]] && touch "${DATA_SYMLINK}/${dir}/.nfs-write-test" 2>/dev/null; then
+        rm -f "${DATA_SYMLINK}/${dir}/.nfs-write-test"
+        echo "[OK] Host can write to ${DATA_SYMLINK}/${dir}"
+    else
+        echo "[WARN] Host user cannot write to ${DATA_SYMLINK}/${dir}"
+        echo "       Container write checks below are authoritative for CKAN."
+    fi
+done
 
 echo ""
 
 # 4. Directory check
 echo "--- Expected Directories ---"
-for dir in resources storage webassets; do
+for dir in resources storage; do
     if [[ -d "${DATA_SYMLINK}/${dir}" ]]; then
         echo "[OK] ${DATA_SYMLINK}/${dir}/ exists"
     else
-        echo "[WARN] ${DATA_SYMLINK}/${dir}/ missing (CKAN creates it on first run)"
+        echo "[FAIL] ${DATA_SYMLINK}/${dir}/ missing; docker-compose bind mounts require this host path"
+        FAILURES=$((FAILURES + 1))
     fi
 done
+if [[ -d "${DATA_SYMLINK}/webassets" ]]; then
+    echo "[WARN] ${DATA_SYMLINK}/webassets/ exists on NFS but should not be mounted into the CKAN container"
+else
+    echo "[OK] webassets is not expected on NFS; CKAN keeps it local to the container"
+fi
 
 echo ""
 
@@ -88,11 +96,11 @@ if docker compose ps --status running 2>/dev/null | grep -q "ckan"; then
     CONTAINER_ID_OUTPUT=$(docker compose exec -T ckan id 2>/dev/null || true)
     if [[ -n "${CONTAINER_ID_OUTPUT}" ]]; then
         echo "[INFO] Container user: ${CONTAINER_ID_OUTPUT}"
-        if echo "${CONTAINER_ID_OUTPUT}" | grep -q "gid=${EXPECTED_GID}"; then
-            echo "[OK] Container GID matches expected (${EXPECTED_GID})"
+        if echo "${CONTAINER_ID_OUTPUT}" | grep -q "uid=${EXPECTED_UID}" && echo "${CONTAINER_ID_OUTPUT}" | grep -q "gid=${EXPECTED_GID}"; then
+            echo "[OK] Container UID/GID match expected (${EXPECTED_UID}:${EXPECTED_GID})"
         else
-            echo "[FAIL] Container GID does not match expected (${EXPECTED_GID})"
-            echo "       Fix: Use production Dockerfile (not dev) which runs groupmod -g ${EXPECTED_GID} ckan-sys"
+            echo "[FAIL] Container UID/GID do not match expected (${EXPECTED_UID}:${EXPECTED_GID})"
+            echo "       Fix: Use production Dockerfile (not dev) which remaps ckan to ${EXPECTED_UID}:${EXPECTED_GID}"
             FAILURES=$((FAILURES + 1))
         fi
     else
@@ -102,12 +110,28 @@ if docker compose ps --status running 2>/dev/null | grep -q "ckan"; then
     echo ""
 
     # 5b. Container write access
-    if docker compose exec -T ckan touch /var/lib/ckan/.container-write-test 2>/dev/null; then
-        docker compose exec -T ckan rm -f /var/lib/ckan/.container-write-test 2>/dev/null
-        echo "[OK] Container can write to /var/lib/ckan"
+    if docker compose exec -T ckan touch /var/lib/ckan/resources/.container-write-test 2>/dev/null; then
+        docker compose exec -T ckan rm -f /var/lib/ckan/resources/.container-write-test 2>/dev/null
+        echo "[OK] Container can write to /var/lib/ckan/resources"
     else
-        echo "[FAIL] Container cannot write to /var/lib/ckan"
-        echo "       Fix: Check that container GID (${EXPECTED_GID}) has write access to NFS mount"
+        echo "[FAIL] Container cannot write to /var/lib/ckan/resources"
+        echo "       Fix: Check Corral ownership/permissions for ${DATA_SYMLINK}/resources"
+        FAILURES=$((FAILURES + 1))
+    fi
+    if docker compose exec -T ckan touch /var/lib/ckan/storage/.container-write-test 2>/dev/null; then
+        docker compose exec -T ckan rm -f /var/lib/ckan/storage/.container-write-test 2>/dev/null
+        echo "[OK] Container can write to /var/lib/ckan/storage"
+    else
+        echo "[FAIL] Container cannot write to /var/lib/ckan/storage"
+        echo "       Fix: Check Corral ownership/permissions for ${DATA_SYMLINK}/storage"
+        FAILURES=$((FAILURES + 1))
+    fi
+    if docker compose exec -T ckan touch /var/lib/ckan/webassets/.container-write-test 2>/dev/null; then
+        docker compose exec -T ckan rm -f /var/lib/ckan/webassets/.container-write-test 2>/dev/null
+        echo "[OK] Container can write to local /var/lib/ckan/webassets"
+    else
+        echo "[FAIL] Container cannot write to local /var/lib/ckan/webassets"
+        echo "       Fix: Rebuild production image and confirm webassets is not mounted from NFS"
         FAILURES=$((FAILURES + 1))
     fi
 

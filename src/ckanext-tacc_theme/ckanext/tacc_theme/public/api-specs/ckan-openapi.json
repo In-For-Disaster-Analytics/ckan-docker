@@ -1,0 +1,1126 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TACC CKAN Action API",
+    "description": "OpenAPI description for common CKAN action API endpoints exposed by the TACC CKAN portal.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/3/action",
+      "description": "CKAN action API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System"
+    },
+    {
+      "name": "Packages"
+    },
+    {
+      "name": "Resources"
+    },
+    {
+      "name": "Organizations"
+    },
+    {
+      "name": "Groups"
+    }
+  ],
+  "paths": {
+    "/status_show": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Show CKAN status",
+        "description": "Returns basic status and version information for the CKAN instance.",
+        "responses": {
+          "200": {
+            "description": "CKAN status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package_search": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Search datasets",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Full-text search query"
+          },
+          {
+            "name": "fq",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Solr filter query"
+          },
+          {
+            "name": "rows",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Sort expression, for example metadata_modified desc"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageSearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package_show": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Show dataset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Dataset id or name"
+          },
+          {
+            "name": "include_tracking",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package_create": {
+      "post": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Create dataset",
+        "security": [
+          {
+            "ckanApiKey": []
+          },
+          {
+            "ckanApiKeyLegacy": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created dataset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package_update": {
+      "post": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Replace dataset",
+        "description": "Updates a dataset. CKAN expects the full dataset object for package_update.",
+        "security": [
+          {
+            "ckanApiKey": []
+          },
+          {
+            "ckanApiKeyLegacy": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated dataset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/package_patch": {
+      "post": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Patch dataset",
+        "description": "Updates selected dataset fields.",
+        "security": [
+          {
+            "ckanApiKey": []
+          },
+          {
+            "ckanApiKeyLegacy": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackagePatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Patched dataset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resource_show": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Show resource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resource_create": {
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Create resource",
+        "security": [
+          {
+            "ckanApiKey": []
+          },
+          {
+            "ckanApiKeyLegacy": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceCreateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceCreateMultipartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resource_update": {
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Replace resource",
+        "security": [
+          {
+            "ckanApiKey": []
+          },
+          {
+            "ckanApiKeyLegacy": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceUpdateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceUpdateMultipartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resource_patch": {
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Patch resource",
+        "security": [
+          {
+            "ckanApiKey": []
+          },
+          {
+            "ckanApiKeyLegacy": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Patched resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organization_list": {
+      "get": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "List organizations",
+        "parameters": [
+          {
+            "name": "all_fields",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "include_dataset_count",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organizations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organization_show": {
+      "get": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Show organization",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Organization id or name"
+          },
+          {
+            "name": "include_datasets",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/group_list": {
+      "get": {
+        "tags": [
+          "Groups"
+        ],
+        "summary": "List groups",
+        "parameters": [
+          {
+            "name": "all_fields",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "include_dataset_count",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/group_show": {
+      "get": {
+        "tags": [
+          "Groups"
+        ],
+        "summary": "Show group",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Group id or name"
+          },
+          {
+            "name": "include_datasets",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupShowResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ckanApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "CKAN API token"
+      },
+      "ckanApiKeyLegacy": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-CKAN-API-Key",
+        "description": "Legacy CKAN API key header"
+      }
+    },
+    "schemas": {
+      "ActionResponse": {
+        "type": "object",
+        "required": [
+          "help",
+          "success"
+        ],
+        "properties": {
+          "help": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "result": {
+            "nullable": true
+          },
+          "error": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "PackageSearchResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ActionResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer"
+                  },
+                  "sort": {
+                    "type": "string"
+                  },
+                  "results": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Package"
+                    }
+                  },
+                  "search_facets": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        ]
+      },
+      "PackageShowResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ActionResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "result": {
+                "$ref": "#/components/schemas/Package"
+              }
+            }
+          }
+        ]
+      },
+      "ResourceShowResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ActionResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "result": {
+                "$ref": "#/components/schemas/Resource"
+              }
+            }
+          }
+        ]
+      },
+      "OrganizationShowResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ActionResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "result": {
+                "$ref": "#/components/schemas/Organization"
+              }
+            }
+          }
+        ]
+      },
+      "GroupShowResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ActionResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "result": {
+                "$ref": "#/components/schemas/Group"
+              }
+            }
+          }
+        ]
+      },
+      "PackageCreateRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "owner_org"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "owner_org": {
+            "type": "string",
+            "description": "Organization id or name"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceInput"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            }
+          },
+          "extras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "PackageUpdateRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PackageCreateRequest"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Dataset id or name"
+              }
+            }
+          }
+        ]
+      },
+      "PackagePatchRequest": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Dataset id or name"
+          },
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "owner_org": {
+            "type": "string"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceInput"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            }
+          },
+          "extras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "ResourceCreateRequest": {
+        "type": "object",
+        "required": [
+          "package_id"
+        ],
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "description": "Parent dataset id or name"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "mimetype": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "ResourceCreateMultipartRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ResourceCreateRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "upload": {
+                "type": "string",
+                "format": "binary",
+                "description": "Uploaded resource file"
+              }
+            }
+          }
+        ]
+      },
+      "ResourceUpdateRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ResourceCreateRequest"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Resource id"
+              }
+            }
+          }
+        ]
+      },
+      "ResourceUpdateMultipartRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ResourceUpdateRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "upload": {
+                "type": "string",
+                "format": "binary",
+                "description": "Replacement uploaded resource file"
+              }
+            }
+          }
+        ]
+      },
+      "ResourcePatchRequest": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Resource id"
+          },
+          "package_id": {
+            "type": "string",
+            "description": "Parent dataset id or name"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "mimetype": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Package": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "owner_org": {
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/Organization"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Resource"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            }
+          },
+          "extras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            }
+          },
+          "metadata_created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metadata_modified": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Resource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "package_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "mimetype": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_modified": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "ResourceInput": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Organization": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "package_count": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Group": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "package_count": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Tag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Extra": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}

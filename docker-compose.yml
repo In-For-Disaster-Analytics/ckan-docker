@@ -30,6 +30,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
+      # Keep generated CKAN runtime paths (notably webassets) off Corral/NFS.
+      # Only uploaded/persistent data directories are bind-mounted.
       - /data/ckan/resources:/var/lib/ckan/resources
       - /data/ckan/storage:/var/lib/ckan/storage
       - pip_cache_py310:/root/.cache/pip
@@ -44,11 +46,12 @@ services:
           'wget',
           '-qO',
           '/dev/null',
-          'http://localhost:5000/api/action/status_show',
+          'http://localhost:5000/',
         ]
       interval: 60s
-      timeout: 10s
-      retries: 3
+      timeout: 30s
+      retries: 5
+      start_period: 90s
 
   datapusher:
     logging:

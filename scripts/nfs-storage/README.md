@@ -1,12 +1,12 @@
 # NFS Corral Storage Setup for CKAN
 
-Mount TACC Corral NFS storage on a new server so the CKAN Docker container can read and write dataset files. The NFS export provides persistent storage at `/var/lib/ckan` inside the container, backed by TACC's Corral filesystem (allocation BCS24011).
+Mount TACC Corral NFS storage on a new server so the CKAN Docker container can read and write uploaded dataset files. The NFS export backs only the CKAN `resources/` and `storage/` directories; generated runtime paths such as `webassets/` stay local to the container.
 
 ## Prerequisites
 
 - Root access on the target server
 - Docker and docker compose installed
-- Production CKAN image built (uses `ckan/Dockerfile` which remaps GID to 826671)
+- Production CKAN image built (uses `ckan/Dockerfile` which remaps the CKAN user to uid `863242`, gid `820466`)
 
 ## Quick Start
 
@@ -54,19 +54,20 @@ Host: /corral/utexas/BCS24011/ckan
        v
 Host: /data/ckan
        |
-       | Docker bind mount (docker-compose.yml)
+       | Docker bind mounts (docker-compose.yml)
        v
-Container: /var/lib/ckan
-       accessed by ckan user (uid=503, gid=826671)
+Container: /var/lib/ckan/resources
+Container: /var/lib/ckan/storage
+       accessed by ckan user (uid=863242, gid=820466)
 ```
 
 - **NFS mount** brings Corral storage to the host at `/corral/utexas/BCS24011/ckan`
 - **Symlink** `/data/ckan` points to the mount (matches docker-compose.yml volume definition)
-- **Docker bind mount** maps `/data/ckan` on the host to `/var/lib/ckan` in the container
-- **Container user** `ckan` (uid=503, gid=826671) accesses files via group permissions
-- **GID remapping** is handled by the production Dockerfile: `groupmod -g 826671 ckan-sys` changes the base image's default GID (502) to match TACC's Corral group
+- **Docker bind mounts** map `/data/ckan/resources` and `/data/ckan/storage` to the matching container subdirectories
+- **Container user** `ckan` (uid=863242, gid=820466) accesses files via ownership/group permissions
+- **UID/GID remapping** is handled by the production Dockerfile: `usermod -u 863242 ckan` and `groupmod -g 820466 ckan-sys`
 
-Files on Corral are owned by various TACC user UIDs but share the `ckan-sys` group (826671). The container accesses everything through group permissions.
+Generated CKAN webassets are intentionally not stored on Corral/NFS. They are rebuilt by CKAN as needed and should remain writable inside the container filesystem.
 
 ## Troubleshooting
 
@@ -76,12 +77,12 @@ The server is not whitelisted for Corral NFS access. Contact TACC sysadmin to re
 
 ### Permission denied inside container
 
-The wrong Dockerfile was used. The dev Dockerfile (`ckan/Dockerfile.dev`) does NOT remap the GID. Use the production Dockerfile (`ckan/Dockerfile`) which includes `groupmod -g 826671 ckan-sys`.
+The wrong Dockerfile was used. The dev Dockerfile (`ckan/Dockerfile.dev`) does NOT remap the production UID/GID. Use the production Dockerfile (`ckan/Dockerfile`) which includes `usermod -u 863242 ckan` and `groupmod -g 820466 ckan-sys`.
 
 Verify with:
 ```bash
 docker compose exec ckan id
-# Expected: uid=503(ckan) gid=826671(ckan-sys)
+# Expected: uid=863242(ckan) gid=820466(ckan-sys)
 # Wrong:    uid=503(ckan) gid=502(ckan-sys)
 ```
 
@@ -131,7 +132,7 @@ docker compose restart
 |------|-------------|
 | `/corral/utexas/BCS24011/ckan` | NFS mount point on host |
 | `/data/ckan` | Symlink to mount point (used by docker-compose.yml) |
-| `/var/lib/ckan` | Storage path inside CKAN container |
+| `/var/lib/ckan` | CKAN runtime path inside the container |
 | `/var/lib/ckan/resources` | CKAN resource files |
 | `/var/lib/ckan/storage` | CKAN file storage |
-| `/var/lib/ckan/webassets` | CKAN compiled web assets |
+| `/var/lib/ckan/webassets` | CKAN compiled web assets, local to the container |

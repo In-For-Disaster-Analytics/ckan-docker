@@ -3,34 +3,25 @@
 ## Architecture
 
 ```
-User -> ckan (129.114.97.106) -> ckan-tmp (129.114.97.55) -> Docker containers
-         nginx reverse proxy       nginx reverse proxy        CKAN on port 5000
+User -> ckan.tacc.utexas.edu -> host nginx -> CKAN container
+                                TLS/CORS      localhost:5000
 ```
 
-### ckan - 129.114.97.106 (old server)
+### CKAN host
 
-Reverse proxy that forwards all traffic to the new server. Handles SSL termination and the public-facing `ckan.tacc.utexas.edu` domain.
+Hosts the Docker Compose deployment. Nginx runs on the host, terminates TLS for `ckan.tacc.utexas.edu`, and proxies directly to the CKAN container on `127.0.0.1:5000`.
 
 - Nginx config: `/etc/nginx/conf.d/ckan-tacc-utexas.conf`
 - Reference copy: [docs/nginx/ckan-tacc-utexas.conf](nginx/ckan-tacc-utexas.conf)
 - SSL: Let's Encrypt (Certbot managed)
-- Proxies to: `https://129.114.97.55`
-- Upload limit: `client_max_body_size 10G`
-
-### ckan-tmp - 129.114.97.55 (new server)
-
-Hosts the Docker Compose deployment. Nginx runs on the host and proxies to the CKAN container on `localhost:5000`.
-
-- Nginx config: `/etc/nginx/conf.d/ckan-tacc-utexas.conf`
-- Reference copy: [docs/nginx/ckan-tmp-tacc-utexas.conf](nginx/ckan-tmp-tacc-utexas.conf)
-- SSL: Let's Encrypt (Certbot managed)
+- Proxies to: `http://127.0.0.1:5000`
 - Upload limit: `client_max_body_size 10G`
 - Serves LiDAR files directly from `/corral/utexas/BCS24011/ckan/lidar_files`
 - Handles CORS headers and media file range requests (video/audio seeking)
 
 ## Docker Compose
 
-Deployed at `/srv/ckan-tacc-images` on ckan-tmp (129.114.97.55).
+Deployed at `/srv/ckan-tacc-images` on the CKAN host (currently 129.114.97.55).
 
 ### Services
 
@@ -44,7 +35,9 @@ Deployed at `/srv/ckan-tacc-images` on ckan-tmp (129.114.97.55).
 
 ### Data Volumes
 
-- CKAN storage: `/data/ckan` (bind mount)
+- CKAN resources: `/data/ckan/resources` -> `/var/lib/ckan/resources`
+- CKAN storage: `/data/ckan/storage` -> `/var/lib/ckan/storage`
+- CKAN webassets: local container filesystem, intentionally not on Corral/NFS
 - PostgreSQL: `pg_data` (Docker volume)
 - Solr: `solr_data` (Docker volume)
 
@@ -57,7 +50,7 @@ Deployed at `/srv/ckan-tacc-images` on ckan-tmp (129.114.97.55).
 ### Common Commands
 
 ```bash
-# SSH into the new server
+# SSH into the CKAN host
 ssh root@129.114.97.55
 
 # Navigate to the deployment directory
@@ -79,3 +72,21 @@ docker compose exec ckan ckan sysadmin add <username>
 # Restart nginx (on host, not in Docker)
 systemctl reload nginx
 ```
+
+### Validation
+
+```bash
+# Local container/API paths
+curl -o /dev/null -s -w "local_api:%{time_total} code:%{http_code}\n" \
+  http://127.0.0.1:5000/api/3/action/status_show
+curl -o /dev/null -s -w "local_home:%{time_total} code:%{http_code}\n" \
+  http://127.0.0.1:5000/
+
+# Public paths through host nginx
+curl -k -o /dev/null -s -w "public_api:%{time_total} code:%{http_code}\n" \
+  https://ckan.tacc.utexas.edu/api/3/action/status_show
+curl -k -o /dev/null -s -w "public_home:%{time_total} code:%{http_code}\n" \
+  https://ckan.tacc.utexas.edu/
+```
+
+Both `local_home` and `public_home` must return `code:200`; those rendered-page checks catch webassets permission failures that API-only checks miss.

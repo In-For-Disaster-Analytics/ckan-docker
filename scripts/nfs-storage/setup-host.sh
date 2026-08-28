@@ -77,27 +77,59 @@ else
 fi
 
 # 6. Set group ownership on the CKAN data directories
-if mount | grep -qF "${MOUNT_POINT}"; then
+#
+# Corral NFS squashes root, so root cannot chgrp here. The invoking user can:
+# they own the data and are a member of the target group. Fall back to root
+# only when the script is run from a root login with no SUDO_USER.
+CHGRP_AS="${SUDO_USER:-root}"
+
+run_as_chgrp_user() {
+    if [[ "${CHGRP_AS}" == "root" ]]; then
+        "$@"
+    else
+        sudo -u "${CHGRP_AS}" "$@"
+    fi
+}
+
+if ! mount | grep -qF "${MOUNT_POINT}"; then
+    echo "[WARN] ${MOUNT_POINT} is not mounted. Skipping group change."
+    echo "       Re-run this script after the mount succeeds."
+elif [[ "${CHGRP_AS}" != "root" ]] && ! id -G "${CHGRP_AS}" 2>/dev/null | tr ' ' '\n' | grep -qxF "${STORAGE_GID}"; then
+    echo "[WARN] User ${CHGRP_AS} is not a member of group ${STORAGE_GID}."
+    echo "       chgrp will fail. Ask the TACC sysadmin to add ${CHGRP_AS} to G-${STORAGE_GID}."
+else
+    echo "[OK] Changing group as user ${CHGRP_AS}"
     for DATA_DIR in "${MOUNT_POINT}/resources" "${MOUNT_POINT}/storage"; do
         if [[ ! -d "${DATA_DIR}" ]]; then
-            echo "[WARN] ${DATA_DIR} does not exist. Skipping chgrp."
+            echo "[WARN] ${DATA_DIR} does not exist. Skipping."
             continue
         fi
+
+        # Entries owned by another user cannot be changed. Report them.
+        FOREIGN=$(run_as_chgrp_user find "${DATA_DIR}" ! -user "${CHGRP_AS}" 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "${FOREIGN}" -gt 0 ]]; then
+            echo "[WARN] ${FOREIGN} entries under ${DATA_DIR} are not owned by ${CHGRP_AS}."
+            echo "       These need the TACC sysadmin or their owner."
+        fi
+
         # Only touch entries with the wrong group, so re-runs stay cheap.
-        WRONG_COUNT=$(find "${DATA_DIR}" ! -group "${STORAGE_GID}" 2>/dev/null | wc -l | tr -d ' ')
-        if [[ "${WRONG_COUNT}" -eq 0 ]]; then
+        WRONG=$(run_as_chgrp_user find "${DATA_DIR}" ! -group "${STORAGE_GID}" 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "${WRONG}" -eq 0 ]]; then
             echo "[OK] ${DATA_DIR} already has group ${STORAGE_GID}"
-        elif find "${DATA_DIR}" ! -group "${STORAGE_GID}" -exec chgrp -h "${STORAGE_GID}" {} + 2>/dev/null; then
-            echo "[OK] Set group ${STORAGE_GID} on ${WRONG_COUNT} entries under ${DATA_DIR}"
+        elif run_as_chgrp_user find "${DATA_DIR}" ! -group "${STORAGE_GID}" -user "${CHGRP_AS}" \
+                 -exec chgrp -h "${STORAGE_GID}" {} + 2>/dev/null; then
+            echo "[OK] Set group ${STORAGE_GID} on ${WRONG} entries under ${DATA_DIR}"
         else
-            echo "[WARN] chgrp failed on ${DATA_DIR}."
-            echo "       Corral NFS may squash root or deny group changes."
+            echo "[WARN] chgrp did not fully succeed on ${DATA_DIR}."
             echo "       Ask the TACC sysadmin to set group ${STORAGE_GID} on this directory."
         fi
+
+        # A non-root chgrp can clear setgid. The bit makes new files inherit
+        # the group, so put it back.
+        run_as_chgrp_user chmod g+s "${DATA_DIR}" 2>/dev/null \
+            && echo "[OK] setgid bit set on ${DATA_DIR}" \
+            || echo "[WARN] Could not set the setgid bit on ${DATA_DIR}"
     done
-else
-    echo "[WARN] ${MOUNT_POINT} is not mounted. Skipping chgrp."
-    echo "       Re-run this script after the mount succeeds."
 fi
 
 # 7. Summary

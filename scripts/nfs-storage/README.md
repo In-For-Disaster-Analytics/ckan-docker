@@ -22,7 +22,9 @@ Mount TACC Corral NFS storage on a new server so the CKAN Docker container can r
 
 3. If the NFS mount fails, the server is not whitelisted for Corral access. Contact TACC sysadmin to request access for your server to allocation BCS24011.
 
-   If the `chgrp` step fails, Corral squashes root or denies group changes. Ask the TACC sysadmin to set group `826471` on the data directories.
+   If the `chgrp` step fails, the invoking user does not own the files or is not in `G-826471`. Ask the TACC sysadmin for help.
+
+   Run the script with `sudo`, not from a root login. Corral NFS squashes root, so the script does the group change as your own user. Your user must own the data and be a member of `G-826471`. Check with `id`.
 
 4. Run the verification script (no sudo needed):
 
@@ -69,7 +71,7 @@ Container: /var/lib/ckan/storage
 - **Symlink** `/data/ckan` points to the mount (matches docker-compose.yml volume definition)
 - **Docker bind mounts** map `/data/ckan/resources` and `/data/ckan/storage` to the matching container subdirectories
 - **Container user** `ckan` (uid=863242, gid=826471) accesses files via ownership/group permissions
-- **Group ownership** on `resources/` and `storage/` is set to gid `826471` by `setup-host.sh`. The script only changes entries with the wrong group, so re-runs are cheap
+- **Group ownership** on `resources/` and `storage/` is set to gid `826471` by `setup-host.sh`. The script runs this step as `$SUDO_USER`, because Corral NFS squashes root. It only changes entries with the wrong group, so re-runs are cheap. It also re-applies the setgid bit, so new files inherit the group
 - **UID/GID remapping** is handled by the production Dockerfile: `usermod -u 863242 ckan` and `groupmod -g 826471 ckan-sys`
 
 Generated CKAN webassets are intentionally not stored on Corral/NFS. They are rebuilt by CKAN as needed and should remain writable inside the container filesystem.

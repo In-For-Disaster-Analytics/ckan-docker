@@ -6,7 +6,7 @@ Mount TACC Corral NFS storage on a new server so the CKAN Docker container can r
 
 - Root access on the target server
 - Docker and docker compose installed
-- Production CKAN image built (uses `ckan/Dockerfile` which remaps the CKAN user to uid `863242`, gid `820466`)
+- Production CKAN image built (uses `ckan/Dockerfile` which remaps the CKAN user to uid `863242`, gid `826471`)
 
 ## Quick Start
 
@@ -58,14 +58,14 @@ Host: /data/ckan
        v
 Container: /var/lib/ckan/resources
 Container: /var/lib/ckan/storage
-       accessed by ckan user (uid=863242, gid=820466)
+       accessed by ckan user (uid=863242, gid=826471)
 ```
 
 - **NFS mount** brings Corral storage to the host at `/corral/utexas/BCS24011/ckan`
 - **Symlink** `/data/ckan` points to the mount (matches docker-compose.yml volume definition)
 - **Docker bind mounts** map `/data/ckan/resources` and `/data/ckan/storage` to the matching container subdirectories
-- **Container user** `ckan` (uid=863242, gid=820466) accesses files via ownership/group permissions
-- **UID/GID remapping** is handled by the production Dockerfile: `usermod -u 863242 ckan` and `groupmod -g 820466 ckan-sys`
+- **Container user** `ckan` (uid=863242, gid=826471) accesses files via ownership/group permissions
+- **UID/GID remapping** is handled by the production Dockerfile: `usermod -u 863242 ckan` and `groupmod -g 826471 ckan-sys`
 
 Generated CKAN webassets are intentionally not stored on Corral/NFS. They are rebuilt by CKAN as needed and should remain writable inside the container filesystem.
 
@@ -77,12 +77,12 @@ The server is not whitelisted for Corral NFS access. Contact TACC sysadmin to re
 
 ### Permission denied inside container
 
-The wrong Dockerfile was used. The dev Dockerfile (`ckan/Dockerfile.dev`) does NOT remap the production UID/GID. Use the production Dockerfile (`ckan/Dockerfile`) which includes `usermod -u 863242 ckan` and `groupmod -g 820466 ckan-sys`.
+The wrong Dockerfile was used. The dev Dockerfile (`ckan/Dockerfile.dev`) does NOT remap the production UID/GID. Use the production Dockerfile (`ckan/Dockerfile`) which includes `usermod -u 863242 ckan` and `groupmod -g 826471 ckan-sys`.
 
 Verify with:
 ```bash
 docker compose exec ckan id
-# Expected: uid=863242(ckan) gid=820466(ckan-sys)
+# Expected: uid=863242(ckan) gid=826471(ckan-sys)
 # Wrong:    uid=503(ckan) gid=502(ckan-sys)
 ```
 

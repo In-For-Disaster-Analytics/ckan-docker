@@ -129,6 +129,20 @@ else
         run_as_chgrp_user chmod g+s "${DATA_DIR}" 2>/dev/null \
             && echo "[OK] setgid bit set on ${DATA_DIR}" \
             || echo "[WARN] Could not set the setgid bit on ${DATA_DIR}"
+
+        # Grant the group write access. These directories carry an extended
+        # ACL, so chmod g+w moves only the mask and leaves group:: at r-x.
+        # setfacl is necessary. The default entry makes new files inherit it.
+        if ! command -v setfacl >/dev/null 2>&1; then
+            echo "[WARN] setfacl not found. Install acl to grant group write."
+        elif run_as_chgrp_user setfacl -R -m "g:${STORAGE_GID}:rwx" "${DATA_DIR}" 2>/dev/null \
+             && run_as_chgrp_user find "${DATA_DIR}" -type d \
+                    -exec setfacl -m "d:g:${STORAGE_GID}:rwx" {} + 2>/dev/null; then
+            echo "[OK] Group ${STORAGE_GID} has rwx on ${DATA_DIR}"
+        else
+            echo "[WARN] Could not set the ACL on ${DATA_DIR}."
+            echo "       Check with: getfacl ${DATA_DIR}"
+        fi
     done
 fi
 

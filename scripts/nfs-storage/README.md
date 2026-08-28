@@ -72,6 +72,15 @@ Container: /var/lib/ckan/storage
 - **Docker bind mounts** map `/data/ckan/resources` and `/data/ckan/storage` to the matching container subdirectories
 - **Container user** `ckan` (uid=863242, gid=826471) accesses files via ownership/group permissions
 - **Group ownership** on `resources/` and `storage/` is set to gid `826471` by `setup-host.sh`. The script runs this step as `$SUDO_USER`, because Corral NFS squashes root. It only changes entries with the wrong group, so re-runs are cheap. It also re-applies the setgid bit, so new files inherit the group
+- **Group write access** comes from a POSIX ACL entry, `group:G-826471:rwx`. These directories have an extended ACL, so `chmod g+w` changes only the mask and leaves `group::` at `r-x`. `setfacl` is necessary. A matching `default:` entry makes new files inherit the access
+
+Note that CKAN does not depend on the group to write. The container user has uid `863242`, the same uid as the data owner, so it matches the `user::rwx` ACL entry. The group grants access to other members of `G-826471`.
+
+Check the result with:
+```bash
+getfacl /corral/utexas/BCS24011/ckan/storage
+# Expected: group:G-826471:rwx and default:group:G-826471:rwx
+```
 - **UID/GID remapping** is handled by the production Dockerfile: `usermod -u 863242 ckan` and `groupmod -g 826471 ckan-sys`
 
 Generated CKAN webassets are intentionally not stored on Corral/NFS. They are rebuilt by CKAN as needed and should remain writable inside the container filesystem.

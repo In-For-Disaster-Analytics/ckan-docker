@@ -46,6 +46,41 @@ Mount TACC Corral NFS storage on a new server so the CKAN Docker container can r
 
    All checks should show `[OK]`. Review any `[FAIL]` or `[WARN]` items.
 
+## Storage Quota
+
+Corral charges the disk quota to the group that owns the file. Moving the CKAN
+data to group `826471` moves that usage to the new allocation and frees the old
+one.
+
+Confirm the quota is a group quota before you rely on this. A user quota does
+not move with a `chgrp`:
+
+```bash
+quota -s                     # user quota
+quota -g PT2050-DataX -s     # old group
+quota -g G-826471 -s         # new group -- confirm it has free space
+```
+
+`setup-host.sh` changes the group in two passes:
+
+1. `chgrp` on every directory in `DATA_DIRS`. This frees the old quota.
+2. `setfacl` to grant group write. ACLs use extended attributes, which need
+   space, so this runs only after pass 1.
+
+Set `SET_ACL=0` to skip pass 2 if the ACL step fails while the quota is full:
+
+```bash
+sudo SET_ACL=0 bash setup-host.sh
+```
+
+`DATA_DIRS` at the top of the script lists the directories to move. It holds
+`resources/` and `storage/` by default. Other directories under the mount, such
+as the `.old` copies, keep the old group and its quota. Add them to `DATA_DIRS`
+to move them too, or delete them if they are obsolete.
+
+The setgid bit matters here. Without it, new uploads inherit the old group and
+consume the old quota again.
+
 ## How It Works
 
 ```

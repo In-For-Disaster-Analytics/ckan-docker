@@ -14,6 +14,14 @@ FSTAB_ENTRY="${NFS_SOURCE} ${MOUNT_POINT} nfs rw,nosuid,_netdev,rsize=1048576,ws
 DATA_SYMLINK="/data/ckan"
 STORAGE_GID=826471
 
+# Directories whose group accounting moves to STORAGE_GID. Corral charges the
+# quota to the group that owns the file, so every directory listed here moves
+# its usage off the old group. Add directories to move more.
+DATA_DIRS=(
+    "${MOUNT_POINT}/resources"
+    "${MOUNT_POINT}/storage"
+)
+
 echo "=== CKAN NFS Corral Storage Setup ==="
 echo ""
 
@@ -99,7 +107,10 @@ elif [[ "${CHGRP_AS}" != "root" ]] && ! id -G "${CHGRP_AS}" 2>/dev/null | tr ' '
     echo "       chgrp will fail. Ask the TACC sysadmin to add ${CHGRP_AS} to G-${STORAGE_GID}."
 else
     echo "[OK] Changing group as user ${CHGRP_AS}"
-    for DATA_DIR in "${MOUNT_POINT}/resources" "${MOUNT_POINT}/storage"; do
+
+    # Pass 1: move the group. This is what frees the old group quota, so it
+    # runs to completion on every directory before anything else is tried.
+    for DATA_DIR in "${DATA_DIRS[@]}"; do
         if [[ ! -d "${DATA_DIR}" ]]; then
             echo "[WARN] ${DATA_DIR} does not exist. Skipping."
             continue
@@ -109,7 +120,7 @@ else
         FOREIGN=$(run_as_chgrp_user find "${DATA_DIR}" ! -user "${CHGRP_AS}" 2>/dev/null | wc -l | tr -d ' ')
         if [[ "${FOREIGN}" -gt 0 ]]; then
             echo "[WARN] ${FOREIGN} entries under ${DATA_DIR} are not owned by ${CHGRP_AS}."
-            echo "       These need the TACC sysadmin or their owner."
+            echo "       Their quota stays with the old group. Ask the TACC sysadmin."
         fi
 
         # Only touch entries with the wrong group, so re-runs stay cheap.
@@ -121,29 +132,40 @@ else
             echo "[OK] Set group ${STORAGE_GID} on ${WRONG} entries under ${DATA_DIR}"
         else
             echo "[WARN] chgrp did not fully succeed on ${DATA_DIR}."
-            echo "       Ask the TACC sysadmin to set group ${STORAGE_GID} on this directory."
+            echo "       The old group quota is not fully freed."
         fi
 
         # A non-root chgrp can clear setgid. The bit makes new files inherit
-        # the group, so put it back.
+        # the group, so put it back. Without it new uploads land in the old
+        # group and consume its quota again.
         run_as_chgrp_user chmod g+s "${DATA_DIR}" 2>/dev/null \
             && echo "[OK] setgid bit set on ${DATA_DIR}" \
             || echo "[WARN] Could not set the setgid bit on ${DATA_DIR}"
-
-        # Grant the group write access. These directories carry an extended
-        # ACL, so chmod g+w moves only the mask and leaves group:: at r-x.
-        # setfacl is necessary. The default entry makes new files inherit it.
-        if ! command -v setfacl >/dev/null 2>&1; then
-            echo "[WARN] setfacl not found. Install acl to grant group write."
-        elif run_as_chgrp_user setfacl -R -m "g:${STORAGE_GID}:rwx" "${DATA_DIR}" 2>/dev/null \
-             && run_as_chgrp_user find "${DATA_DIR}" -type d \
-                    -exec setfacl -m "d:g:${STORAGE_GID}:rwx" {} + 2>/dev/null; then
-            echo "[OK] Group ${STORAGE_GID} has rwx on ${DATA_DIR}"
-        else
-            echo "[WARN] Could not set the ACL on ${DATA_DIR}."
-            echo "       Check with: getfacl ${DATA_DIR}"
-        fi
     done
+
+    # Pass 2: grant the group write access. ACLs live in extended attributes,
+    # which need space, so this runs only after pass 1 has freed the quota.
+    # Set SET_ACL=0 to skip it.
+    if [[ "${SET_ACL:-1}" != "1" ]]; then
+        echo "[OK] SET_ACL=0. Skipping the ACL step."
+    elif ! command -v setfacl >/dev/null 2>&1; then
+        echo "[WARN] setfacl not found. Install acl to grant group write."
+    else
+        for DATA_DIR in "${DATA_DIRS[@]}"; do
+            [[ -d "${DATA_DIR}" ]] || continue
+            # These directories carry an extended ACL, so chmod g+w moves only
+            # the mask and leaves group:: at r-x. setfacl is necessary. The
+            # default entry makes new files inherit the access.
+            if run_as_chgrp_user setfacl -R -m "g:${STORAGE_GID}:rwx" "${DATA_DIR}" 2>/dev/null \
+               && run_as_chgrp_user find "${DATA_DIR}" -type d \
+                      -exec setfacl -m "d:g:${STORAGE_GID}:rwx" {} + 2>/dev/null; then
+                echo "[OK] Group ${STORAGE_GID} has rwx on ${DATA_DIR}"
+            else
+                echo "[WARN] Could not set the ACL on ${DATA_DIR}."
+                echo "       Check the quota, then: getfacl ${DATA_DIR}"
+            fi
+        done
+    fi
 fi
 
 # 7. Summary

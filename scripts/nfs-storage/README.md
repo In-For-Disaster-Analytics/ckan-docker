@@ -24,7 +24,9 @@ Mount TACC Corral NFS storage on a new server so the CKAN Docker container can r
 
    If the `chgrp` step fails, the invoking user does not own the files or is not in `G-826471`. Ask the TACC sysadmin for help.
 
-   Run the script with `sudo`, not from a root login. Corral NFS squashes root, so the script does the group change as your own user. Your user must own the data and be a member of `G-826471`. Check with `id`.
+   Run the script with `sudo`, not from a root login. Corral NFS squashes root, so root cannot change the group. The script tests one file first, then uses whichever identity works: root, or your own user. Your user must own the data and be a member of `G-826471`. Check with `id`.
+
+   Files owned by uid 503 are a known case. That is the container uid from before the Dockerfile remap, and no host user owns it. Neither root nor your user can change those files. See "Files owned by uid 503" below.
 
 4. Run the verification script (no sudo needed):
 
@@ -80,6 +82,27 @@ to move them too, or delete them if they are obsolete.
 
 The setgid bit matters here. Without it, new uploads inherit the old group and
 consume the old quota again.
+
+### Files owned by uid 503
+
+Some directories hold files owned by uid `503`. That is the stock `ckan` uid
+from the base image, written by a container built from `Dockerfile.dev`, which
+does not remap the uid. No host user owns uid 503, and Corral squashes root, so
+neither identity can change or delete these files.
+
+Run a container as uid 503 to work with them:
+
+```bash
+docker run --rm --user 503:826671 \
+  -v /corral/utexas/BCS24011/ckan/resources.old:/target \
+  alpine:3 sh -c 'ls /target | head; du -sh /target'
+```
+
+The NFS export uses AUTH_SYS, so the server accepts the uid the client sends.
+This fails if the server uses `manage-gids`, because it then looks up the groups
+for uid 503 on the server, where the uid does not exist.
+
+Use the production Dockerfile to prevent new files with uid 503.
 
 ## How It Works
 

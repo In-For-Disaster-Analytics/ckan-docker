@@ -9,7 +9,7 @@ set -euo pipefail
 MOUNT_POINT="/corral/utexas/BCS24011/ckan"
 DATA_SYMLINK="/data/ckan"
 EXPECTED_UID=863242
-EXPECTED_GID=820466
+EXPECTED_GID=826471
 FAILURES=0
 
 echo "=== NFS Mount Verification ==="

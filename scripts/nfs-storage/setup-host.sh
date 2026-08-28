@@ -121,6 +121,21 @@ chgrp_pass() {
     find "${dir}" ! -group "${STORAGE_GID}" 2>/dev/null | wc -l | tr -d ' '
 }
 
+# setgid_pass <dir> <as-user> -- set setgid on directories that lack it.
+# Prints the number of directories that still lack it. Must cover the whole
+# tree: a chgrp clears the bit, and a subdirectory without it gives new files
+# the creating user's primary group, which is the old group.
+setgid_pass() {
+    local dir="$1" as_user="$2"
+    if [[ "${as_user}" == "root" ]]; then
+        find "${dir}" -type d ! -perm -g+s -exec chmod g+s {} + 2>/dev/null || true
+    else
+        sudo -u "${as_user}" find "${dir}" -type d ! -perm -g+s -user "${as_user}" \
+            -exec chmod g+s {} + 2>/dev/null || true
+    fi
+    find "${dir}" -type d ! -perm -g+s 2>/dev/null | wc -l | tr -d ' '
+}
+
 if ! mount | grep -qF "${MOUNT_POINT}"; then
     echo "[WARN] ${MOUNT_POINT} is not mounted. Skipping group change."
     echo "       Re-run this script after the mount succeeds."
@@ -136,6 +151,7 @@ else
             continue
         fi
 
+        USED="${CHGRP_USER}"
         BEFORE=$(find "${DATA_DIR}" ! -group "${STORAGE_GID}" 2>/dev/null | wc -l | tr -d ' ')
         if [[ "${BEFORE}" -eq 0 ]]; then
             echo "[OK] ${DATA_DIR} already has group ${STORAGE_GID}"
@@ -154,13 +170,23 @@ else
             fi
         fi
 
-        # A non-root chgrp can clear setgid. The bit makes new files inherit
-        # the group, so put it back. Without it new uploads land in the old
-        # group and consume the old quota again.
-        { chmod g+s "${DATA_DIR}" 2>/dev/null \
-          || sudo -u "${CHGRP_USER}" chmod g+s "${DATA_DIR}" 2>/dev/null; } \
-            && echo "[OK] setgid bit set on ${DATA_DIR}" \
-            || echo "[WARN] Could not set the setgid bit on ${DATA_DIR}"
+        # A chgrp clears setgid, so restore it across the whole tree. The top
+        # directory alone is not enough: a subdirectory without the bit gives
+        # new files the creating user's primary group, which is the old group,
+        # and the old quota fills again.
+        MISSING=$(find "${DATA_DIR}" -type d ! -perm -g+s 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "${MISSING}" -eq 0 ]]; then
+            echo "[OK] setgid bit set on all directories under ${DATA_DIR}"
+        else
+            STILL=$(setgid_pass "${DATA_DIR}" "${USED:-${CHGRP_USER}}")
+            echo "[OK] setgid bit set on $((MISSING - STILL)) of ${MISSING} directories under ${DATA_DIR}"
+            if [[ "${STILL}" -gt 0 ]]; then
+                echo "[WARN] ${STILL} directories still lack the setgid bit."
+                echo "       New files there take the old group and its quota."
+                echo "       List them with:"
+                echo "         find ${DATA_DIR} -type d ! -perm -g+s -printf '%u %p\\n'"
+            fi
+        fi
     done
 
     # Pass 2: grant the group write access. ACLs live in extended attributes,

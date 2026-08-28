@@ -99,8 +99,25 @@ docker run --rm --user 503:826671 \
 ```
 
 The NFS export uses AUTH_SYS, so the server accepts the uid the client sends.
-This fails if the server uses `manage-gids`, because it then looks up the groups
-for uid 503 on the server, where the uid does not exist.
+This is confirmed to work on this deployment. Test write access first:
+
+```bash
+docker run --rm --user 503:826671 \
+  -v /corral/utexas/BCS24011/ckan/resources.old:/target \
+  alpine:3 sh -c 'touch /target/.wtest && rm /target/.wtest && echo WRITABLE'
+```
+
+Change the group of uid 503 files the same way. The container needs the target
+group, so put it in the `--user` argument:
+
+```bash
+docker run --rm --user 503:826471 \
+  -v /corral/utexas/BCS24011/ckan/resources.old:/target \
+  alpine:3 sh -c 'chgrp -R 826471 /target'
+```
+
+This fails if the server uses `manage-gids`, because the server then looks up
+the groups for uid 503 itself, and that uid does not exist there.
 
 Use the production Dockerfile to prevent new files with uid 503.
 

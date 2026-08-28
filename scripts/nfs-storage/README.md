@@ -18,7 +18,11 @@ Mount TACC Corral NFS storage on a new server so the CKAN Docker container can r
    sudo bash setup-host.sh
    ```
 
+   The script mounts Corral, creates the `/data/ckan` symlink, and sets group `826471` on the `resources/` and `storage/` directories.
+
 3. If the NFS mount fails, the server is not whitelisted for Corral access. Contact TACC sysadmin to request access for your server to allocation BCS24011.
+
+   If the `chgrp` step fails, Corral squashes root or denies group changes. Ask the TACC sysadmin to set group `826471` on the data directories.
 
 4. Run the verification script (no sudo needed):
 
@@ -65,6 +69,7 @@ Container: /var/lib/ckan/storage
 - **Symlink** `/data/ckan` points to the mount (matches docker-compose.yml volume definition)
 - **Docker bind mounts** map `/data/ckan/resources` and `/data/ckan/storage` to the matching container subdirectories
 - **Container user** `ckan` (uid=863242, gid=826471) accesses files via ownership/group permissions
+- **Group ownership** on `resources/` and `storage/` is set to gid `826471` by `setup-host.sh`. The script only changes entries with the wrong group, so re-runs are cheap
 - **UID/GID remapping** is handled by the production Dockerfile: `usermod -u 863242 ckan` and `groupmod -g 826471 ckan-sys`
 
 Generated CKAN webassets are intentionally not stored on Corral/NFS. They are rebuilt by CKAN as needed and should remain writable inside the container filesystem.

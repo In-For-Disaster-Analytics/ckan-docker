@@ -3,7 +3,8 @@
 #
 # Run once with root access. Safe to re-run (idempotent).
 # Does NOT create host-level users or groups -- container-side permissions
-# are handled by the production Dockerfile.
+# are handled by the production Dockerfile. It only sets the numeric group
+# on the data directories so the container user can read and write them.
 
 set -euo pipefail
 
@@ -11,6 +12,7 @@ NFS_SOURCE="129.114.52.151:/corral/main/utexas/BCS24011/ckan"
 MOUNT_POINT="/corral/utexas/BCS24011/ckan"
 FSTAB_ENTRY="${NFS_SOURCE} ${MOUNT_POINT} nfs rw,nosuid,_netdev,rsize=1048576,wsize=1048576,intr,nfsvers=3,tcp 0 0"
 DATA_SYMLINK="/data/ckan"
+STORAGE_GID=826471
 
 echo "=== CKAN NFS Corral Storage Setup ==="
 echo ""
@@ -74,12 +76,37 @@ else
     echo "[OK] Created symlink ${DATA_SYMLINK} -> ${MOUNT_POINT}"
 fi
 
-# 6. Summary
+# 6. Set group ownership on the CKAN data directories
+if mount | grep -qF "${MOUNT_POINT}"; then
+    for DATA_DIR in "${MOUNT_POINT}/resources" "${MOUNT_POINT}/storage"; do
+        if [[ ! -d "${DATA_DIR}" ]]; then
+            echo "[WARN] ${DATA_DIR} does not exist. Skipping chgrp."
+            continue
+        fi
+        # Only touch entries with the wrong group, so re-runs stay cheap.
+        WRONG_COUNT=$(find "${DATA_DIR}" ! -group "${STORAGE_GID}" 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "${WRONG_COUNT}" -eq 0 ]]; then
+            echo "[OK] ${DATA_DIR} already has group ${STORAGE_GID}"
+        elif find "${DATA_DIR}" ! -group "${STORAGE_GID}" -exec chgrp -h "${STORAGE_GID}" {} + 2>/dev/null; then
+            echo "[OK] Set group ${STORAGE_GID} on ${WRONG_COUNT} entries under ${DATA_DIR}"
+        else
+            echo "[WARN] chgrp failed on ${DATA_DIR}."
+            echo "       Corral NFS may squash root or deny group changes."
+            echo "       Ask the TACC sysadmin to set group ${STORAGE_GID} on this directory."
+        fi
+    done
+else
+    echo "[WARN] ${MOUNT_POINT} is not mounted. Skipping chgrp."
+    echo "       Re-run this script after the mount succeeds."
+fi
+
+# 7. Summary
 echo ""
 echo "=== Setup Summary ==="
 echo "  fstab entry:  configured (includes _netdev)"
 echo "  Mount point:  ${MOUNT_POINT}"
 echo "  Data symlink: ${DATA_SYMLINK} -> ${MOUNT_POINT}"
+echo "  Storage group: ${STORAGE_GID} (must match ckan/Dockerfile)"
 echo ""
 echo "Next steps:"
 echo "  1. If mount failed, contact TACC sysadmin for allocation BCS24011 access"

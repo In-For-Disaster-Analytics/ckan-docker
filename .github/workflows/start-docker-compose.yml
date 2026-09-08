@@ -7,44 +7,262 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+# Controls when jobs will run
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test-containers:
+  # ─── Foundation services: rarely change, skip if no relevant code changed ───
+
+  postgres:
+    name: Start PostgreSQL
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    # Only run if postgresql/ or docker-compose.dev.yml changed
+    if: |
+      github.event.inputs.force == 'true' ||
+      contains(github.event.head_commit.modified, 'postgresql/') ||
+      contains(github.event.head_commit.modified, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.modified, 'docker-compose.yml') ||
+      contains(github.event.head_commit.added, 'postgresql/') ||
+      contains(github.event.head_commit.added, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.added, 'docker-compose.yml')
+    outputs:
+      postgres_healthy: ${{ steps.check_health.outputs.healthy }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env.dev.secrets file
+        run: cp .env.secrets.example .env.dev.secrets
+
+      - name: Build PostgreSQL image
+        run: docker compose -f docker-compose.dev.yml build db
+
+      - name: Start PostgreSQL container
+        run: docker compose -f docker-compose.dev.yml up -d db
+
+      - name: Wait for PostgreSQL to be ready
+        id: check_health
+        run: |
+          echo "Waiting for PostgreSQL to become ready..."
+          attempt=1
+          max_attempts=15
+          healthy=false
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt of $max_attempts"
+            if docker compose -f docker-compose.dev.yml exec -T db pg_isready -U postgres -d postgres 2>/dev/null; then
+              echo "PostgreSQL is ready!"
+              healthy=true
+              break
+            fi
+            echo "Waiting 10 seconds before next check..."
+            sleep 10
+            ((attempt++))
+          done
+
+          echo "healthy=$healthy" >> $GITHUB_OUTPUT
+
+          if [ "$healthy" != "true" ]; then
+            echo "PostgreSQL failed to become ready"
+            docker compose -f docker-compose.dev.yml logs db
+            exit 1
+          fi
+
+      - name: Output logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml logs db
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker compose -f docker-compose.dev.yml stop db
+
+  redis:
+    name: Start Redis
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Redis uses a pre-built image — skip unless forced or compose changed
+    if: |
+      github.event.inputs.force == 'true' ||
+      contains(github.event.head_commit.modified, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.modified, 'docker-compose.yml') ||
+      contains(github.event.head_commit.added, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.added, 'docker-compose.yml')
+    outputs:
+      redis_healthy: ${{ steps.check_health.outputs.healthy }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env.dev.secrets file
+        run: cp .env.secrets.example .env.dev.secrets
+
+      - name: Start Redis container
+        run: docker compose -f docker-compose.dev.yml up -d redis
+
+      - name: Wait for Redis to be ready
+        id: check_health
+        run: |
+          echo "Waiting for Redis to become ready..."
+          attempt=1
+          max_attempts=10
+          healthy=false
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt of $max_attempts"
+            if docker compose -f docker-compose.dev.yml exec -T redis redis-cli ping 2>/dev/null | grep -q PONG; then
+              echo "Redis is ready!"
+              healthy=true
+              break
+            fi
+            echo "Waiting 5 seconds before next check..."
+            sleep 5
+            ((attempt++))
+          done
+
+          echo "healthy=$healthy" >> $GITHUB_OUTPUT
+
+          if [ "$healthy" != "true" ]; then
+            echo "Redis failed to become ready"
+            docker compose -f docker-compose.dev.yml logs redis
+            exit 1
+          fi
+
+      - name: Output logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml logs redis
+
+      - name: Stop Redis
+        if: always()
+        run: docker compose -f docker-compose.dev.yml stop redis
+
+  solr:
+    name: Start Solr
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Solr uses a pre-built image — skip unless forced or compose changed
+    if: |
+      github.event.inputs.force == 'true' ||
+      contains(github.event.head_commit.modified, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.modified, 'docker-compose.yml') ||
+      contains(github.event.head_commit.added, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.added, 'docker-compose.yml')
+    outputs:
+      solr_healthy: ${{ steps.check_health.outputs.healthy }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env.dev.secrets file
+        run: cp .env.secrets.example .env.dev.secrets
+
+      - name: Start Solr container
+        run: docker compose -f docker-compose.dev.yml up -d solr
+
+      - name: Wait for Solr to be ready
+        id: check_health
+        run: |
+          echo "Waiting for Solr to become ready..."
+          attempt=1
+          max_attempts=15
+          healthy=false
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt of $max_attempts"
+            if docker compose -f docker-compose.dev.yml exec -T solr wget -qO /dev/null http://localhost:8983/solr/ 2>/dev/null; then
+              echo "Solr is ready!"
+              healthy=true
+              break
+            fi
+            echo "Waiting 10 seconds before next check..."
+            sleep 10
+            ((attempt++))
+          done
+
+          echo "healthy=$healthy" >> $GITHUB_OUTPUT
+
+          if [ "$healthy" != "true" ]; then
+            echo "Solr failed to become ready"
+            docker compose -f docker-compose.dev.yml logs solr
+            exit 1
+          fi
+
+      - name: Output logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml logs solr
+
+      - name: Stop Solr
+        if: always()
+        run: docker compose -f docker-compose.dev.yml stop solr
+
+  # ─── CKAN: depends on foundation services, runs if any src/ code changed ───
+
+  ckan:
+    name: Start CKAN
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Run if src/ extensions, ckan/ code, or compose changed
+    if: |
+      github.event.inputs.force == 'true' ||
+      contains(github.event.head_commit.modified, 'src/') ||
+      contains(github.event.head_commit.modified, 'ckan/') ||
+      contains(github.event.head_commit.modified, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.modified, 'docker-compose.yml') ||
+      contains(github.event.head_commit.modified, '.env.') ||
+      contains(github.event.head_commit.added, 'src/') ||
+      contains(github.event.head_commit.added, 'ckan/') ||
+      contains(github.event.head_commit.added, 'docker-compose.dev.yml') ||
+      contains(github.event.head_commit.added, 'docker-compose.yml') ||
+      contains(github.event.head_commit.added, '.env.')
+    # Wait for foundation services (skip if they didn't run — they were skipped above)
+    needs: [postgres, redis, solr]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Create .env.dev.secrets file
         run: cp .env.secrets.example .env.dev.secrets
 
       - name: Build Docker images
-        run: docker compose -f docker-compose.dev.yml build
+        run: docker compose -f docker-compose.dev.yml build ckan-dev
 
       - name: Install local CKAN extensions
         run: ./bin/install_src
 
-      - name: Start Docker containers
+      - name: Start all containers (CKAN + foundation)
         run: docker compose -f docker-compose.dev.yml up -d
 
-      - name: Wait for containers to be ready
+      - name: Wait for CKAN to be healthy
         run: |
           set -e
           echo "Waiting for containers to become healthy..."
           attempt=1
-          max_attempts=10
+          max_attempts=20
 
           while [ $attempt -le $max_attempts ]; do
             echo "Attempt $attempt of $max_attempts"
-            # Show json
             docker compose -f docker-compose.dev.yml ps --format json
 
-            # Check if all required containers are running and healthy
-            if docker compose -f docker-compose.dev.yml ps ckan-dev --format json | jq -r '.Health' | grep -v "healthy" | wc -l | grep -q "^0$"; then
+            # Check if CKAN container is healthy
+            if docker compose -f docker-compose.dev.yml ps ckan-dev --format json | jq -r '.Health' 2>/dev/null | grep -v "healthy" | wc -l | grep -q "^0$"; then
               echo "CKAN container is healthy!"
               break
             fi
@@ -60,46 +278,6 @@ jobs:
             sleep 30
             ((attempt++))
           done
-
-      # - name: Check CKAN web access
-      #   run: |
-      #     echo "Checking CKAN web access..."
-      #     attempt=1
-      #     max_attempts=5
-
-      #     while [ $attempt -le $max_attempts ]; do
-      #       echo "Attempt $attempt of $max_attempts"
-
-      #       # Check if CKAN web interface is accessible
-      #       if curl -k -s -o /dev/null -w "%{http_code}" https://localhost:8443 | grep -q "200\|302"; then
-      #         echo "CKAN web interface is accessible!"
-      #         break
-      #       fi
-
-      #       if [ $attempt -eq $max_attempts ]; then
-      #         echo "CKAN web interface failed to respond within the allocated time"
-      #         curl -k -v https://localhost:8443
-      #         docker compose logs ckan
-      #         exit 1
-      #       fi
-
-      #       echo "Waiting 10 seconds before next check..."
-      #       sleep 10
-      #       ((attempt++))
-      #     done
-
-      # - name: Check service API endpoints
-      #   run: |
-      #     echo "Checking CKAN API..."
-      #     # Test CKAN API endpoint
-      #     response_code=$(curl -k -s -o /dev/null -w "%{http_code}" https://localhost:8443/api/3/action/status_show)
-      #     if [[ "$response_code" == "200" ]]; then
-      #       echo "CKAN API is accessible (Status code: $response_code)"
-      #     else
-      #       echo "CKAN API check failed with status code: $response_code"
-      #       curl -k -v https://localhost:8443/api/3/action/status_show
-      #       exit 1
-      #     fi
 
       - name: Output container status and logs on failure
         if: failure()

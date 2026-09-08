@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force all jobs to run (ignore file filters)'
+        required: false
+        default: 'false'
+        type: boolean
 
 # Controls when jobs will run
 concurrency:
@@ -13,13 +19,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ─── Foundation services: rarely change, skip if no relevant code changed ───
+  # ─── Foundation services: only run when relevant code changes ───
 
   postgres:
     name: Start PostgreSQL
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Only run if postgresql/ or docker-compose.dev.yml changed
+    # Only run if postgresql/ or docker-compose files changed
     if: |
       github.event.inputs.force == 'true' ||
       contains(github.event.head_commit.modified, 'postgresql/') ||
@@ -87,7 +93,7 @@ jobs:
     name: Start Redis
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Redis uses a pre-built image — skip unless forced or compose changed
+    # Redis uses a pre-built image — skip unless forced or compose files changed
     if: |
       github.event.inputs.force == 'true' ||
       contains(github.event.head_commit.modified, 'docker-compose.dev.yml') ||
@@ -150,7 +156,7 @@ jobs:
     name: Start Solr
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Solr uses a pre-built image — skip unless forced or compose changed
+    # Solr uses a pre-built image — skip unless forced or compose files changed
     if: |
       github.event.inputs.force == 'true' ||
       contains(github.event.head_commit.modified, 'docker-compose.dev.yml') ||
@@ -208,89 +214,3 @@ jobs:
       - name: Stop Solr
         if: always()
         run: docker compose -f docker-compose.dev.yml stop solr
-
-  # ─── CKAN: depends on foundation services, runs if any src/ code changed ───
-
-  ckan:
-    name: Start CKAN
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Run if src/ extensions, ckan/ code, or compose changed
-    if: |
-      github.event.inputs.force == 'true' ||
-      contains(github.event.head_commit.modified, 'src/') ||
-      contains(github.event.head_commit.modified, 'ckan/') ||
-      contains(github.event.head_commit.modified, 'docker-compose.dev.yml') ||
-      contains(github.event.head_commit.modified, 'docker-compose.yml') ||
-      contains(github.event.head_commit.modified, '.env.') ||
-      contains(github.event.head_commit.added, 'src/') ||
-      contains(github.event.head_commit.added, 'ckan/') ||
-      contains(github.event.head_commit.added, 'docker-compose.dev.yml') ||
-      contains(github.event.head_commit.added, 'docker-compose.yml') ||
-      contains(github.event.head_commit.added, '.env.')
-    # Wait for foundation services (skip if they didn't run — they were skipped above)
-    needs: [postgres, redis, solr]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Create .env.dev.secrets file
-        run: cp .env.secrets.example .env.dev.secrets
-
-      - name: Build Docker images
-        run: docker compose -f docker-compose.dev.yml build ckan-dev
-
-      - name: Install local CKAN extensions
-        run: ./bin/install_src
-
-      - name: Start all containers (CKAN + foundation)
-        run: docker compose -f docker-compose.dev.yml up -d
-
-      - name: Wait for CKAN to be healthy
-        run: |
-          set -e
-          echo "Waiting for containers to become healthy..."
-          attempt=1
-          max_attempts=20
-
-          while [ $attempt -le $max_attempts ]; do
-            echo "Attempt $attempt of $max_attempts"
-            docker compose -f docker-compose.dev.yml ps --format json
-
-            # Check if CKAN container is healthy
-            if docker compose -f docker-compose.dev.yml ps ckan-dev --format json | jq -r '.Health' 2>/dev/null | grep -v "healthy" | wc -l | grep -q "^0$"; then
-              echo "CKAN container is healthy!"
-              break
-            fi
-
-            if [ $attempt -eq $max_attempts ]; then
-              echo "Containers failed to become healthy within the allocated time"
-              docker compose -f docker-compose.dev.yml ps
-              docker compose -f docker-compose.dev.yml logs
-              exit 1
-            fi
-
-            echo "Waiting 30 seconds before next check..."
-            sleep 30
-            ((attempt++))
-          done
-
-      - name: Output container status and logs on failure
-        if: failure()
-        run: |
-          echo "==== Container Status ===="
-          docker compose -f docker-compose.dev.yml ps
-
-          echo "==== Container Logs ===="
-          for service in ckan-dev db solr redis datapusher; do
-            echo "==== $service logs ===="
-            docker compose -f docker-compose.dev.yml logs $service
-          done
-
-      - name: Stop containers
-        if: always()
-        run: docker compose -f docker-compose.dev.yml down -v

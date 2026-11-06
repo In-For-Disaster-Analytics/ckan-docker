@@ -1,0 +1,45 @@
+scheming_version: 2
+organization_type: organization
+about: >-
+  Default CKAN organization fields plus a parent-organization selector
+  provided by ckanext-hierarchy. Enabled via scheming.organization_schemas.
+about_url: https://github.com/ckan/ckanext-hierarchy
+
+fields:
+  - field_name: title
+    label: Name
+    validators: ignore_missing unicode_safe
+    form_snippet: large_text.html
+    form_attrs:
+      data-module: slug-preview-target
+    form_placeholder: My Organization
+    display_snippet: null
+
+  - field_name: name
+    label: URL
+    validators: not_empty unicode_safe name_validator group_name_validator
+    form_snippet: slug.html
+    form_placeholder: my-organization
+    display_snippet: null
+
+  - field_name: description
+    label: Description
+    validators: ignore_missing unicode_safe
+    form_snippet: markdown.html
+    form_placeholder: A little information about my organization...
+
+  - field_name: image_url
+    label: Image
+    preset: organization_url_upload
+    display_snippet: null
+
+  # Form-only field. The ckanext-hierarchy snippet renders a
+  # <select name="groups__0__name"> and CKAN core stores that as the parent
+  # relationship in the member table (capacity "parent"). Nothing is saved
+  # under this field name (the "ignore" validator drops the key even if an API
+  # client sends it), so it needs no migration and no reindex.
+  - field_name: parent_organization
+    label: Parent organization
+    validators: ignore
+    form_snippet: org_hierarchy.html
+    display_snippet: null

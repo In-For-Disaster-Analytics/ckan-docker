@@ -36,6 +36,7 @@ RUN pip3 install -e "git+https://github.com/ckan/ckanext-spatial.git#egg=ckanext
 RUN pip3 install -e 'git+https://github.com/In-For-Disaster-Analytics/ckanext-oauth2.git@v1.2.2#egg=ckanext-oauth2'
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-showcase.git#egg=ckanext-showcase"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages"
+RUN pip3 install -e "git+https://github.com/ckan/ckanext-hierarchy.git@53c1ee74805d79aef7c9c01cc513eb881cb8928f#egg=ckanext-hierarchy"
 RUN pip3 install -e "git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming"
 RUN pip3 install -e "git+https://github.com/mjanez/ckanext-openapi.git@v1.0.0#egg=ckanext-openapi"
 RUN pip3 install ckanext-pdfview

@@ -106,6 +106,7 @@
                   h.humanize_entity_type('organization', org_type, 'main nav') or _('Organizations'), ['organization']),
                 (group_type ~ '.index',
                   h.humanize_entity_type('group', group_type, 'main nav') or _('Groups'), ['group']),
+                ('showcase_blueprint.index', _('Showcases'), ['showcase']),
                 ('home.about', _('About')) ) }}
             {% endblock %}
           </ul>

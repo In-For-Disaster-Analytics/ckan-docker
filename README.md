@@ -237,6 +237,37 @@ Set the correct permissions for the ckan user:
 sudo chown -R 503:502 ckan_storage
 ```
 
+## Organization Hierarchy
+
+Organizations can be nested with [ckanext-hierarchy](https://github.com/ckan/ckanext-hierarchy)
+(pinned to commit `53c1ee7` on master, 2026-07-24). The last tagged release, `v1.2.2`, predates the
+CKAN 2.11 move of the organization sidebar snippet to `organization/snippets/info.html`, so the tree
+would not render in the sidebar on 2.11 with the tag; master also carries an HTMX fix for that snippet.
+
+- Only the `hierarchy_display` plugin is enabled. `hierarchy_form` is intentionally **not**
+  enabled because `scheming_organizations` already owns the organization form; the upstream
+  README says to combine the two by adding the `org_hierarchy.html` form snippet to a scheming
+  organization schema instead.
+- That schema lives at `src/ckanext-dso_scheming/ckanext/dso_scheming/organization.yaml` and is
+  wired in with `CKAN___SCHEMING__ORGANIZATION_SCHEMAS` in `.env.dev.config` / `.env.prod.config`.
+  It reproduces the default organization fields (title, URL, description, image) and adds a
+  **Parent organization** selector.
+- The parent link is stored in CKAN's existing `member` table (capacity `parent`). There is no
+  extension database migration and no search-index rebuild; existing organizations simply start
+  as top-level nodes.
+- `/organization` renders the tree, an organization's page shows its position in the tree, and
+  dataset search within an organization gains an **include sub-organizations** option.
+- The extension also adds two read-only API actions: `group_tree` and `group_tree_section`.
+
+To set a parent, edit the child organization and choose the parent in the **Parent organization**
+dropdown.
+
+**Rollback:** revert the Dockerfile install line, `hierarchy_display` in `CKAN__PLUGINS`, and
+`CKAN___SCHEMING__ORGANIZATION_SCHEMAS` together. Leaving the schema configured without the plugin
+breaks the organization create/edit forms, because the `org_hierarchy.html` snippet ships with the
+extension. Existing `member` rows with capacity `parent` are ignored by core CKAN and can stay. Plugin order matters: `hierarchy_display` must stay after `scheming_organizations` in
+`CKAN__PLUGINS` so its templates take precedence over scheming's.
+
 ## API Authentication
 
 CKAN provides two methods for API authentication:

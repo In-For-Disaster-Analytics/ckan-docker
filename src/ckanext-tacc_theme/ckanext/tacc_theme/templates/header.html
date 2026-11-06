@@ -107,7 +107,8 @@
                 (group_type ~ '.index',
                   h.humanize_entity_type('group', group_type, 'main nav') or _('Groups'), ['group']),
                 ('showcase_blueprint.index', _('Showcases'), ['showcase']),
-                ('home.about', _('About')) ) }}
+                ('home.about', _('About')),
+                ('openapi.openapi_index', _('OpenAPI')) if h.plugin_loaded('openapi') else () ) }}
             {% endblock %}
           </ul>
 

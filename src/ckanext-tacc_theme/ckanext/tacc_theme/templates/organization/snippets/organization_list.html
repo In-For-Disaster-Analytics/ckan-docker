@@ -1,0 +1,20 @@
+{#
+Display a grid of organization items (copy of CKAN core's template).
+
+tacc_theme ships this on purpose: ckanext-hierarchy replaces the same snippet
+with a plain tree listing on /organization. Keeping the core card grid here,
+with tacc_theme listed before hierarchy_display in ckan.plugins, preserves the
+original organization index. The hierarchy still shows in each organization's
+sidebar, about page, breadcrumbs and the parent selector on the edit form.
+
+organizations - A list of organizations.
+#}
+{% block organization_list %}
+<ul class="media-grid" data-module="media-grid">
+  {% block organization_list_inner %}
+  {% for organization in organizations %}
+    {% snippet "organization/snippets/organization_item.html", organization=organization, position=loop.index, show_capacity=show_capacity %}
+  {% endfor %}
+   {% endblock %}
+</ul>
+{% endblock %}

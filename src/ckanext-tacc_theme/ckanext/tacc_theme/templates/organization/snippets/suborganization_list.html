@@ -1,0 +1,14 @@
+{#
+Card grid of an organization's direct sub-organizations, shown at the top of
+the organization page above the Add Dataset button.
+
+organizations - list of organization dicts (see h.get_child_organizations).
+#}
+<section class="suborganizations">
+  <h3 class="suborganizations-heading">{{ _('Sub-organizations') }}</h3>
+  <ul class="media-grid" data-module="media-grid">
+    {% for organization in organizations %}
+      {% snippet "organization/snippets/suborganization_item.html", organization=organization, position=loop.index %}
+    {% endfor %}
+  </ul>
+</section>

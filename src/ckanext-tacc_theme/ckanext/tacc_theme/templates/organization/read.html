@@ -1,0 +1,15 @@
+{% ckan_extends %}
+
+{#
+Show the organization's direct sub-organizations as cards at the top of the
+main column, above the Add Dataset button. ckan_extends resolves to
+ckanext-hierarchy's read.html (include-sub-organizations option) and from
+there to core, so those behaviours are kept.
+#}
+{% block page_primary_action %}
+  {% set child_organizations = h.get_child_organizations(group_dict.id) %}
+  {% if child_organizations %}
+    {% snippet 'organization/snippets/suborganization_list.html', organizations=child_organizations %}
+  {% endif %}
+  {{ super() }}
+{% endblock %}

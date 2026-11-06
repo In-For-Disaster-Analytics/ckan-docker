@@ -27,6 +27,7 @@ class TaccThemePlugin(plugins.SingletonPlugin):
             'get_dynamo_dashboard_url': self.get_dynamo_dashboard_url,
             'get_ensemble_manager_api_url': self.get_ensemble_manager_api_url,
             'safe_oauth2_get_stored_token': self.safe_oauth2_get_stored_token,
+            'get_child_organizations': self.get_child_organizations,
         }
 
     def get_dynamo_dashboard_url(self):
@@ -46,6 +47,39 @@ class TaccThemePlugin(plugins.SingletonPlugin):
         except (AttributeError, Exception):
             # OAuth2 extension is not available or helper is not defined
             return None
+
+    def get_child_organizations(self, group_id):
+        """Direct sub-organizations of an organization, ordered by name.
+
+        Used for the card grid on an organization's page. Each item is an
+        organization_show dict (image, description, dataset count), so it can be
+        rendered with the same card markup as the organization index. Returns []
+        when ckanext-hierarchy is not enabled or the organization has no children.
+        """
+        if not plugins.plugin_loaded('hierarchy_display'):
+            return []
+        try:
+            section = toolkit.get_action('group_tree_section')(
+                {'include_parents': False, 'include_siblings': False},
+                {'id': group_id, 'type': 'organization'})
+        except (toolkit.ObjectNotFound, toolkit.ValidationError):
+            return []
+        children = []
+        for node in section.get('children', []):
+            try:
+                children.append(toolkit.get_action('organization_show')({}, {
+                    'id': node['id'],
+                    'include_datasets': False,
+                    'include_dataset_count': True,
+                    'include_users': False,
+                    'include_followers': False,
+                    'include_extras': False,
+                    'include_groups': False,
+                    'include_tags': False,
+                }))
+            except (toolkit.ObjectNotFound, toolkit.NotAuthorized):
+                continue
+        return sorted(children, key=lambda o: (o.get('display_name') or o['name']).lower())
 
     def markdown_extract_paragraphs(text: str, extract_length: int = 190) -> Union[str, Markup]:
         ''' return the plain text representation of markdown (ie: text without any html tags)

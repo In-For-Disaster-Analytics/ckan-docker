@@ -1,0 +1,9 @@
+{#
+A sub-organization card: the core organization card without the member count,
+which organization_show does not provide (it would always read "0 Members").
+
+organization - an organization dict.
+#}
+{% extends "organization/snippets/organization_item.html" %}
+
+{% block members %}{% endblock %}
